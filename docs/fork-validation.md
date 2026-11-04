@@ -40,7 +40,14 @@ Environment: macOS 26.5.2, arm64, Xcode Swift 6.3.3.
   and stop-click hit testing and cancellation.
 - The focused non-UI runs completed 59 tests with no failures. The separate
   desktop-enabled UIStatusTests run passed all 42 tests.
-- Full regression suite: running; final result will be recorded here.
+- Full regression run exercised 1,296 tests in about 19 minutes. All 248
+  recovery-script tests passed. Thirteen tmux tests were skipped because tmux
+  is not installed. One README contract test had three assertion failures
+  because it expected upstream installation instructions. After updating that
+  test for this fork and retaining the upstream guide link, all 11 tests in
+  ReleaseWorkflowTests passed on rerun. No application, recovery or installer
+  tests failed. Only README/test/documentation files changed after the full
+  run; the application and recovery code were unchanged.
 - Release build: passed. The resulting app's ad-hoc code signature verifies.
   The packaged read-only safety command returned `safe` with exit status 0.
 - Bash syntax check and ShellCheck 0.11.0 passed for the repository scripts.

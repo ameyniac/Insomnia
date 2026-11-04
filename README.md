@@ -58,7 +58,8 @@ open "$HOME/Applications/Insomnia.app"
 
 The installer asks for your Mac administrator password in Terminal.
 The app's existing update checker still reports upstream releases; installing
-an upstream release would replace the fork's changes.
+an upstream release would replace the fork's changes. For upstream releases
+only, see the [upstream installation guide](docs/install.md).
 
 <details>
 <summary><strong>What the installer changes on your Mac</strong></summary>
