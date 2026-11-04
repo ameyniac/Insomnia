@@ -1,7 +1,7 @@
 #!/bin/bash
 # Insomnia backstop: restore the machine from the JSON journal alone.
 # Runs from launchd (RunAtLoad + StartInterval 60, installed by install.sh)
-# and from install.sh / uninstall.sh. Needs no Insomnia process and no Swift.
+# and from install.sh / uninstall.sh. Needs no running Insomnia GUI.
 #
 # Where it lives: install.sh copies this file into the app bundle at
 # Insomnia.app/Contents/Resources/backstop.sh before signing the bundle, so
@@ -28,7 +28,9 @@
 # the lock file's inode.
 #
 # Decision, driven only by what the journal says was changed:
-#   - session.json valid (endsAt in the future) and no --force: exit 0.
+#   - session.json valid (endsAt in the future) and no --force: probe battery
+#     and critical heat on versioned bundles; expire and restore if unsafe.
+#     Legacy bundles keep deadline-only recovery. A safe session exits 0.
 #   - state.json missing or clean: nothing is undone and nothing privileged
 #     runs; an expired session.json is removed. Exit 0. Entries in
 #     savedAudioOutputs alone count as clean (see below).
@@ -459,7 +461,7 @@ supervise_command() { # base command args...
   log info "'$*' (pid $cpid), left running after SIGTERM, has exited (wait status $rc); its supervisor now lets go of the recovery lock, and the next run will retry"
 }
 
-# Run the app binary's --resume-frozen check (see resume_via_app) with the
+# Run a bounded app command (resume-frozen or check-session-safety) with the
 # same time limit, standard input from app_answer_dir/in and standard output
 # to app_answer_dir/out. This shell starts the binary as its own background
 # job and is the only process that signals it; no supervisor stands between
@@ -516,15 +518,15 @@ run_app_bounded() { # command args...
   signal_job TERM "$cpid" || true
   if wait_for_job "$cpid" "$KILL_GRACE_SECONDS"; then
     wait "$cpid" || rc=$?
-    log error "'$1 --resume-frozen' (pid $cpid) did not answer within ${COMMAND_TIMEOUT_SECONDS}s; sent SIGTERM, and it ended (wait status $rc)"
+    log error "'$1 ${2:-}' (pid $cpid) did not answer within ${COMMAND_TIMEOUT_SECONDS}s; sent SIGTERM, and it ended (wait status $rc)"
     return 124
   fi
   signal_job KILL "$cpid" || true
   if wait_for_job "$cpid" "$KILL_GRACE_SECONDS"; then
     wait "$cpid" || rc=$?
-    log error "'$1 --resume-frozen' (pid $cpid) did not answer within ${COMMAND_TIMEOUT_SECONDS}s and was still running ${KILL_GRACE_SECONDS}s after SIGTERM; sent SIGKILL, and it ended (wait status $rc)"
+    log error "'$1 ${2:-}' (pid $cpid) did not answer within ${COMMAND_TIMEOUT_SECONDS}s and was still running ${KILL_GRACE_SECONDS}s after SIGTERM; sent SIGKILL, and it ended (wait status $rc)"
   else
-    log error "'$1 --resume-frozen' (pid $cpid) did not answer within ${COMMAND_TIMEOUT_SECONDS}s and has not exited ${KILL_GRACE_SECONDS}s after SIGKILL; it runs no further code, and it keeps the recovery lock until the kernel ends it"
+    log error "'$1 ${2:-}' (pid $cpid) did not answer within ${COMMAND_TIMEOUT_SECONDS}s and has not exited ${KILL_GRACE_SECONDS}s after SIGKILL; it runs no further code, and it keeps the recovery lock until the kernel ends it"
   fi
   return 124
 } 2>/dev/null
@@ -904,8 +906,47 @@ if [[ -e "$SESSION" ]]; then
   fi
 fi
 
+# A versioned, read-only probe runs independently of the GUI. Older installed
+# bundles retain deadline-only recovery until upgraded; never launch their GUI
+# by passing an unknown command-line flag. The signed LaunchAgent entry point
+# verifies this bundle before running this script.
+safety_reason=""
 if [[ "$session_state" == valid ]] && (( force == 0 )); then
-  exit 0
+  safety_version="$("$PLUTIL" -extract InsomniaSafetyCheckVersion raw -o - "$INSOMNIA_INFO" 2>/dev/null || true)"
+  if [[ "$safety_version" != 1 ]]; then
+    exit 0
+  fi
+  safety_reason="probe-unavailable"
+  app_answer_dir="$("$MKTEMP" -d "$APP_SUPPORT/.backstop-safety.XXXXXX" 2>/dev/null)" || app_answer_dir=""
+  if [[ -n "$app_answer_dir" ]]; then
+    if : > "$app_answer_dir/in" && [[ -x "$INSOMNIA_BIN" ]]; then
+      safety_rc=0
+      run_app_bounded "$INSOMNIA_BIN" --check-session-safety || safety_rc=$?
+      safety_answer="$(head -c 100 "$app_answer_dir/out" 2>/dev/null || true)"
+      case "$safety_rc:$safety_answer" in
+        0:safe) safety_reason="" ;;
+        10:stop-battery|10:stop-thermal|10:stop-battery-unreadable|10:stop-configuration-unreadable)
+          safety_reason="$safety_answer" ;;
+        *) safety_reason="probe-failed" ;;
+      esac
+    fi
+    "$RM" -rf "$app_answer_dir"
+  fi
+  [[ -z "$safety_reason" ]] && exit 0
+  log warn "independent safety check ended session: $safety_reason"
+  # Persist the earlier deadline before undoing anything. A relaunched GUI
+  # must not resume this session, and a later cool/charged reading must not
+  # suppress a retry of failed restoration. Publish with the lock held.
+  safety_session="$("$MKTEMP" "$APP_SUPPORT/.safety-session.XXXXXX")"
+  if "$CP" "$SESSION" "$safety_session" &&
+      "$PLUTIL" -replace endsAt -string "$("$DATE" -u +%Y-%m-%dT%H:%M:%SZ)" "$safety_session" &&
+      "$MV" -f "$safety_session" "$SESSION"; then
+    session_state=expired
+  else
+    "$RM" -f "$safety_session"
+    log error "could not persist safety deadline; session retained for retry"
+    exit 1
+  fi
 fi
 
 # --- Read the journal --------------------------------------------------------
@@ -1009,7 +1050,7 @@ quarantine_session() {
 
 case "$session_state" in
   none)       session_note="no session" ;;
-  valid)      session_note="forced end of session (endsAt=$ends_at)" ;;
+  valid)      session_note="forced end of session (endsAt=$ends_at; safety=${safety_reason:-manual})" ;;
   expired)    session_note="session expired (endsAt=$ends_at)" ;;
   malformed)  session_note="session.json unreadable" ;;
   unreadable) session_note="session.json cannot be read ($unreadable_why), so its end time is unknown; treated as expired" ;;

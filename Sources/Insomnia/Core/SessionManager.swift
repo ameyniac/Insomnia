@@ -440,6 +440,7 @@ final class SessionManager {
 
     @ObservationIgnored private var deadlineTimer: Timer?
     @ObservationIgnored private var countdownTimer: Timer?
+    @ObservationIgnored private var recoveryPollTimer: Timer?
     @ObservationIgnored private var retryTimer: Timer?
     /// Whether the 1 Hz redraw is currently on the run loop. Tests assert on
     /// this to prove an idle session leaves no repeating wakeup behind.
@@ -1276,6 +1277,15 @@ final class SessionManager {
 
     private func performExtend(by extra: TimeInterval, ticket: Int) async {
         guard let current = session, endTicket == ticket else { return }
+        do {
+            guard let stored = try store.loadSession(), stored.endsAt > clock() else {
+                fail("extension refused: the independent recovery worker ended this session")
+                return
+            }
+        } catch {
+            fail("extension refused: could not read the saved session: \(error.localizedDescription)")
+            return
+        }
         let updated = SessionMath.extended(current, by: extra, now: clock(), maxDuration: config.maxDuration)
         // The agent enforces whatever deadline is on disk; confirm it is
         // still loaded before moving that deadline out.
@@ -2861,6 +2871,27 @@ final class SessionManager {
 
     // MARK: Countdown (1 Hz redraw)
 
+    /// The independent safety worker can expire a session while the GUI is
+    /// alive. Read under the shared lock, then use the normal end path so
+    /// audio/brightness and the UI are reconciled as well. Never re-arm it.
+    func checkExternalEnd() async {
+        guard let observed = session else { return }
+        let ticket = endTicket
+        let result = await exclusive("check independent recovery") {
+            guard self.session != nil else { return false }
+            do {
+                guard let stored = try self.store.loadSession() else { return true }
+                return stored.endsAt <= self.clock()
+            } catch {
+                self.fail("could not read the independent recovery deadline: \(error.localizedDescription)")
+                return false
+            }
+        }
+        if case .success(true) = result, session == observed, endTicket == ticket {
+            await end(reason: .backstop)
+        }
+    }
+
     /// Stop the countdown redraw. The lid observer calls this on lid close,
     /// which is what keeps a 1 Hz timer from costing battery in the bag.
     func pauseCountdown() {
@@ -2921,6 +2952,14 @@ final class SessionManager {
         // One timer at the deadline. Fire dates in the past fire immediately.
         scheduleDeadlineTimer(fire: endsAt)
 
+        recoveryPollTimer?.invalidate()
+        let poll = Timer(fire: Date().addingTimeInterval(15), interval: 15, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.checkExternalEnd() }
+        }
+        poll.tolerance = 2
+        RunLoop.main.add(poll, forMode: .common)
+        recoveryPollTimer = poll
+
         refreshCountdown()
         if !countdownPaused { armCountdownTimer() }
     }
@@ -2974,6 +3013,8 @@ final class SessionManager {
     }
 
     private func stopTimers() {
+        recoveryPollTimer?.invalidate()
+        recoveryPollTimer = nil
         deadlineTimer?.invalidate()
         deadlineTimer = nil
         countdownTimer?.invalidate()

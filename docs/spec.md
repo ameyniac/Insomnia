@@ -1,3 +1,5 @@
+> This is the upstream specification. This fork changes the stop gesture, default freeze list, and background safety checks as recorded in [fork validation](fork-validation.md).
+
 # Insomnia — keep the Mac awake and working with the lid closed
 
 These are design notes, not a release certification. The

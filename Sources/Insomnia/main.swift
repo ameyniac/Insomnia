@@ -1,5 +1,10 @@
 import Foundation
 
+if let output = SafetyCheckCommand.run(Array(CommandLine.arguments.dropFirst()), endAfter: ResumeFrozenCommand.endProcess) {
+    for line in output.lines { print(line) }
+    exit(output.status)
+}
+
 // Entry point. A one-shot command-line mode is answered here, before AppKit
 // or SwiftUI start, so backstop.sh can borrow the app's kernel-level
 // identity check (see ResumeFrozenCommand), which ends itself when its

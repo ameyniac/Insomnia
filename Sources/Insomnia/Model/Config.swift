@@ -107,12 +107,8 @@ struct Config: Codable, Equatable, Sendable {
         3 * 24 * 3600,
     ]
 
-    /// Default freeze list: chat apps that burn battery in the background.
-    static let defaultFreezeList: [String] = [
-        "com.tinyspeck.slackmacgap",      // Slack
-        "net.whatsapp.WhatsApp",          // WhatsApp
-        "com.hnc.Discord",                // Discord
-    ]
+    /// This fork leaves every app running unless the user explicitly opts in.
+    static let defaultFreezeList: [String] = []
 
     /// Default agent list (spec section 5). Bundle ids confirmed against
     /// installed apps where possible; see README for how to edit.

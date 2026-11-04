@@ -39,6 +39,9 @@ final class StatusItemController: NSObject {
     private var keyMonitor: Any?
     private var localMouseMonitor: Any?
     private var globalMouseMonitor: Any?
+    private var endClickMonitor: Any?
+    private var endClick = EndClickTracking()
+
     /// Holds keyboard focus while the pills are open; see `KeyCatcherPanel`.
     private var keyCatcher: KeyCatcherPanel?
     /// 1 Hz redraw of the projected countdown while a start is pending, so
@@ -134,8 +137,46 @@ final class StatusItemController: NSObject {
         // repeat and never grows the frame: size the host here.
         host.frame.size.width = max(widthTarget, host.fittingSize.width.rounded(.up), 24)
         widthChanged(host.fittingSize.width)
+        installEndClickMonitor()
         logFrames("installed")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.logFrames("after 1s") }
+    }
+
+    /// Status-item events can report the window centre instead of the actual
+    /// pointer. Use the visible button, never the host which only grows.
+    private func installEndClickMonitor() {
+        endClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+            let consumed = MainActor.assumeIsolated { self?.consumeEndClick(event) ?? false }
+            return consumed ? nil : event
+        }
+    }
+
+    private func consumeEndClick(_ event: NSEvent) -> Bool {
+        let pointer = NSEvent.mouseLocation
+        if endClick.isTracking {
+            if event.type == .leftMouseDragged {
+                endClick.drag(to: pointer)
+                return true
+            }
+            if event.type == .leftMouseUp {
+                let fire = endClick.finish(at: pointer, inside: pointerIsInEndControl(pointer))
+                if fire { holdToEnd() }
+                return true
+            }
+        }
+        guard event.type == .leftMouseDown, let button,
+              event.window === button.window,
+              !event.modifierFlags.contains(.control),
+              pointerIsInEndControl(pointer) else { return false }
+        endClick.begin(at: pointer)
+        return true
+    }
+
+    private func pointerIsInEndControl(_ pointer: NSPoint) -> Bool {
+        guard manager.isActive, model.phase.showsRunningControls, !model.slotsPresent,
+              let button, let window = button.window else { return false }
+        let point = button.convert(window.convertPoint(fromScreen: pointer), from: nil)
+        return EndClickTracking.contains(point, in: button.bounds)
     }
 
     /// Centralizes the AppKit/SwiftUI boundary so its sizing contract can be
@@ -617,7 +658,7 @@ final class StatusItemController: NSObject {
         }
     }
 
-    /// The status item's hold-to-end ring completed. Ignored while a start is
+    /// The status item's end control was activated. Ignored while a start is
     /// still in flight.
     func holdToEnd() {
         guard manager.isActive else { return }
