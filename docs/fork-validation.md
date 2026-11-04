@@ -31,6 +31,53 @@ ending. Older bundles without the versioned probe keep deadline-only recovery.
 A missing or invalid bundle can prevent the signed launchd entry point from
 running at all. Saved audio and some display restoration still need the GUI.
 
+## Version 0.2.0 improvements
+
+- Lid-aware cleanup restores sleep suppression immediately at session end,
+  without declaring user activity or restoring ordinary saved brightness
+  while the lid is closed or unreadable. Saved levels remain in the journal.
+  A five-second timer restores them once the lid is known open, including
+  after wake when the original session's services are stopped. A relaunch
+  reconstructs the pending work from the journal. Existing refused-brightness
+  readback and compatibility checks are preserved.
+- Explicit screen locking is enabled by default, except when an active
+  external display is connected. Settings exposes both the main switch and
+  the docked override. A missing lock function, failed display inspection or
+  unconfirmed lock ends the session through the normal recovery path. The
+  private `SACLockScreenImmediate` function is resolved at runtime, then the
+  session's locked state is checked for up to two seconds. The behavior was
+  inspired by Amped; our implementation adds confirmation and failure handling.
+- The menu and Settings show the deadline, safety cutoffs, pending cleanup
+  and a timestamped read-only launchd status. A successful helper exit describes
+  a past run, not a future guarantee. Copy diagnostics includes a fresh power
+  readback and excludes network/device names, paths, raw logs and credentials.
+- Settings and the menu identify the personal fork as 0.2.0. The signed
+  bundle records a source revision (with a dirty marker for tracked changes,
+  or `source-archive` when Git metadata is unavailable). Fork builds do not
+  query upstream releases; the UI links to the reviewed fork branch instead.
+
+The native lock confirmation and revised closed-lid expiry behavior still need
+an installed-Mac trial. The earlier hardware results below apply to the first
+fork build, not version 0.2.0. No new privileged commands or daemon were added.
+
+Version 0.2.0 validation:
+
+- All 208 targeted tests passed, including lid-aware recovery, lock policy and
+  failure handling, diagnostics, existing refused-brightness cases, packaging,
+  and selected source/ad-hoc installation fixtures.
+- Broad application regression: 1,057 tests, 13 tmux tests skipped because
+  tmux is absent, zero failures. This run excludes `RecoveryScriptTests`;
+  the relevant installation cases are included in the targeted run above.
+- Release build, strict code-signature verification, the packaged read-only
+  safety command (`safe`, exit 0), Bash syntax and pinned ShellCheck 0.11.0
+  passed.
+- Read-only inspection found the native lock entry point on this Mac. It was
+  not called during automated validation; successful physical locking remains
+  a supervised hardware check.
+- The unchanged recovery shell worker's full 248-test run belongs to the first
+  build below. This update reruns its relevant build/install fixtures, not the
+  entire shell suite.
+
 ## Local verification, 2026-11-04
 
 Environment: macOS 26.5.2, arm64, Xcode Swift 6.3.3.
@@ -118,5 +165,5 @@ only injected test coverage. Stop if restoration fails; inspect the journal
 and log before another session. The upstream uninstaller remains available
 as `./scripts/uninstall.sh`.
 
-The app's update checker still points to upstream releases. Installing one of
-those replaces this fork's changes; rebuild this branch to retain them.
+Version 0.2.0 disables the upstream update check for fork builds and links to
+this branch. Install a reviewed build from this branch to retain the changes.

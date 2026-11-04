@@ -19,6 +19,7 @@ enum EndReason: String, Sendable {
     /// may still have been applied, so the start is undone from the journal
     /// like an end rather than rolled back from memory.
     case startFailed
+    case screenLockFailed
 }
 
 /// What `end` achieved. Callers that are about to quit need to know whether
@@ -441,6 +442,8 @@ final class SessionManager {
     @ObservationIgnored private var deadlineTimer: Timer?
     @ObservationIgnored private var countdownTimer: Timer?
     @ObservationIgnored private var recoveryPollTimer: Timer?
+    @ObservationIgnored private var deferredDisplayTimer: Timer?
+    private(set) var displayRestoreWaitingForLid = false
     @ObservationIgnored private var retryTimer: Timer?
     /// Whether the 1 Hz redraw is currently on the run loop. Tests assert on
     /// this to prove an idle session leaves no repeating wakeup behind.
@@ -1462,6 +1465,15 @@ final class SessionManager {
             let agentCanFinish = armed && !owedEdits.hidesARestore && owedReadLit == nil && !owedSettlement
             let unrecorded = [owedSettlement ? "that a brightness kept after a refused restore is settled" : nil,
                               owedReadLit != nil ? "a reading of the display brightness kept after a refused restore" : nil]
+            var withoutDisplay = state
+            withoutDisplay.savedDisplayBrightness = nil
+            withoutDisplay.savedKeyboardBrightness = nil
+            if displayRestoreWaitingForLid, retainedBecause == nil,
+               !withoutDisplay.isDirty(leavingOutAudioOf: waitingUIDs),
+               !owedEdits.hidesARestore, owedReadLit == nil, !owedSettlement {
+                notifier.post(title: "Session ended", body: "Sleep is back to normal. Brightness will be restored when the lid opens; the saved levels remain recorded.")
+                return .incomplete(agentArmed: armed)
+            }
             let detail = dirty ? (lastError ?? "some changes could not be undone")
                 : "state.json could not record \(unrecorded.compactMap { $0 }.joined(separator: ", nor "))"
             let retry: String
@@ -2111,9 +2123,22 @@ final class SessionManager {
         // Brightness entries are read with the owed edits applied: an entry
         // this process already settled is not restored again.
         let kept = effectiveState
-        if kept.brightnessJournaled {
-            display.wake()
+        let lidOpen = clamshell() == false
+        let deferDisplay = !lidOpen && kept.savedDisplayBrightness != nil && !kept.displayRestoreRefused
+        let deferKeyboard = !lidOpen && kept.savedKeyboardBrightness != nil && !kept.keyboardRestoreRefused
+        displayRestoreWaitingForLid = deferDisplay || deferKeyboard
+        if displayRestoreWaitingForLid {
+            // Keep ordinary saves for reopen. Previously refused values
+            // retain their existing capability/readback retry path below.
+            reassertTask?.cancel()
+            pendingReassert = (nil, nil)
+            armDeferredDisplayRestore()
+            Log.info("brightness restoration deferred until the lid is known open")
+        } else {
+            deferredDisplayTimer?.invalidate()
+            deferredDisplayTimer = nil
         }
+        if kept.brightnessJournaled, lidOpen { display.wake() }
         // Read before the entries are cleared: the re-assert below needs them.
         var restoredDisplay: Float?
         var restoredKeyboard: Float?
@@ -2126,14 +2151,14 @@ final class SessionManager {
         // since: see keptLevel.
         var refused: [String] = []
         var waiting: [String] = []
-        if let saved = kept.savedDisplayBrightness, let why = display.refusal() {
+        if !deferDisplay, let saved = kept.savedDisplayBrightness, let why = display.refusal() {
             refused.append(keepRefusedRestore("Display brightness", saved: saved, why: why, flag: \.displayRestoreRefused))
-        } else if let saved = kept.savedDisplayBrightness {
+        } else if !deferDisplay, let saved = kept.savedDisplayBrightness {
             restoredDisplay = restoreDisplay(saved: saved, waiting: &waiting, errors: &errors)
         }
-        if let saved = kept.savedKeyboardBrightness, let why = keyboard.refusal() {
+        if !deferKeyboard, let saved = kept.savedKeyboardBrightness, let why = keyboard.refusal() {
             refused.append(keepRefusedRestore("Keyboard backlight", saved: saved, why: why, flag: \.keyboardRestoreRefused))
-        } else if let saved = kept.savedKeyboardBrightness {
+        } else if !deferKeyboard, let saved = kept.savedKeyboardBrightness {
             restoredKeyboard = restoreKeyboard(saved: saved, waiting: &waiting, errors: &errors)
         }
         waiting += owedEdits.clearsWaiting
@@ -2460,6 +2485,10 @@ final class SessionManager {
                 // With the owed edits applied: a restore whose clear the
                 // journal has not taken yet is done all the same.
                 let journaled = self.effectiveState
+                guard self.clamshell() == false else {
+                    Log.info("brightness re-assert skipped: lid is not known open")
+                    return
+                }
                 if let value = restoredDisplay {
                     if journaled.savedDisplayBrightness != nil {
                         Log.info("display restore re-assert skipped: darkened again")
@@ -2485,6 +2514,28 @@ final class SessionManager {
                     }
                 }
             }
+        }
+    }
+
+    /// A timer continues after session services stop, and fires after wake.
+    /// No power setting is changed while waiting. Relaunch reconstructs the
+    /// wait from the existing brightness journal, without a new schema.
+    private func armDeferredDisplayRestore() {
+        guard deferredDisplayTimer == nil else { return }
+        let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.restoreDisplayAfterLidOpens() }
+        }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        deferredDisplayTimer = timer
+    }
+
+    func restoreDisplayAfterLidOpens() async {
+        guard displayRestoreWaitingForLid, clamshell() == false else { return }
+        if isActive {
+            await undoLidActions()
+        } else {
+            await end(reason: .backstop)
         }
     }
 
@@ -3245,6 +3296,7 @@ final class SessionManager {
             : "A previous session left changes behind; everything has been undone."
         case .recoveryUnavailable: "Insomnia could not arm its recovery agent for the session found on disk, so it ended the session. Sleep is back to normal."
         case .startFailed: "Insomnia could not disable sleep, so no session was started. Sleep is back to normal."
+        case .screenLockFailed: "The screen could not be locked, so the session ended. Sleep is back to normal."
         }
     }
 }

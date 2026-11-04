@@ -34,6 +34,10 @@ struct Config: Codable, Equatable, Sendable {
     /// closed laptop. A config.json an earlier build saved with it off gets
     /// it turned on once (`applyLidCloseDefaults`).
     var muteOnLidClose: Bool = true
+    /// Lock explicitly because suppressing clamshell sleep also bypasses
+    /// the normal sleep/lock path. Docked sessions can opt in separately.
+    var lockOnLidClose: Bool = true
+    var lockWithExternalDisplay: Bool = false
     /// Save the display brightness and keyboard backlight, set both to zero
     /// on lid close and restore them on lid open. With sleep disabled macOS
     /// no longer turns the panel off itself.
@@ -154,6 +158,8 @@ struct Config: Codable, Equatable, Sendable {
         // Earlier builds read a missing key as off, so the update below
         // sees what such a config.json actually did.
         muteOnLidClose = try c.decodeIfPresent(Bool.self, forKey: .muteOnLidClose) ?? (lidCloseDefaultsApplied && d.muteOnLidClose)
+        lockOnLidClose = try c.decodeIfPresent(Bool.self, forKey: .lockOnLidClose) ?? d.lockOnLidClose
+        lockWithExternalDisplay = try c.decodeIfPresent(Bool.self, forKey: .lockWithExternalDisplay) ?? d.lockWithExternalDisplay
         darkenDisplayOnLidClose = try c.decodeIfPresent(Bool.self, forKey: .darkenDisplayOnLidClose) ?? d.darkenDisplayOnLidClose
         lowPowerOnLidClose = try c.decodeIfPresent(Bool.self, forKey: .lowPowerOnLidClose) ?? d.lowPowerOnLidClose
         agentList = try c.decodeIfPresent([String].self, forKey: .agentList) ?? d.agentList

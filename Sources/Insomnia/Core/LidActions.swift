@@ -18,6 +18,7 @@ final class LidActions {
     private let audio: any AudioControlling
     private let display: any DisplayDimming
     private let keyboard: any KeyboardBacklighting
+    private let screenLock: any ScreenLocking
     /// Last trusted brightness values, kept by AppServices while the lid is
     /// open. nil (tests) means the device's own asleep/suppressed reading
     /// decides alone.
@@ -37,7 +38,8 @@ final class LidActions {
         audio: any AudioControlling,
         display: any DisplayDimming = NoopDisplayDimmer(),
         keyboard: any KeyboardBacklighting = NoopKeyboardBacklight(),
-        sampler: BrightnessSampler? = nil
+        sampler: BrightnessSampler? = nil,
+        screenLock: any ScreenLocking = NoopScreenLock()
     ) {
         self.manager = manager
         self.freezer = freezer
@@ -46,6 +48,7 @@ final class LidActions {
         self.display = display
         self.keyboard = keyboard
         self.sampler = sampler
+        self.screenLock = screenLock
     }
 
     /// Records a lid event as it arrives and returns its number. Every
@@ -71,6 +74,7 @@ final class LidActions {
         }
         // One lifecycle transaction: journal writes and SIGSTOPs happen
         // under the recovery lock, after any end already in flight.
+        var lockFailed = false
         let ran = await manager.runExclusive("lid close") { [self, manager] in
             guard manager.isActive, !Task.isCancelled else { return }
             guard lidEvents == event else {
@@ -84,6 +88,22 @@ final class LidActions {
             // queued right behind and must not find a fresh freeze.
             let stillCurrent = { [self] in
                 manager.isActive && manager.endTicket == ticket && lidEvents == event && !Task.isCancelled
+            }
+
+            if config.lockOnLidClose {
+                do {
+                    if try config.lockWithExternalDisplay || !screenLock.hasExternalDisplay() {
+                        try await screenLock.lock()
+                        Log.info("screen lock confirmed on lid close")
+                    } else {
+                        Log.info("screen lock skipped: external display connected")
+                    }
+                } catch {
+                    manager.fail("screen lock failed: \(error.localizedDescription); ending the session")
+                    lockFailed = true
+                    return
+                }
+                guard stillCurrent() else { return }
             }
 
             if config.darkenDisplayOnLidClose {
@@ -133,6 +153,8 @@ final class LidActions {
             manager.pauseCountdown()
         }
         if !ran { Log.error("lid close actions skipped: recovery lock busy") }
+        // End outside the lifecycle transaction, never recursively take its lock.
+        if lockFailed { await manager.end(reason: .screenLockFailed) }
     }
 
     func onOpen() async {

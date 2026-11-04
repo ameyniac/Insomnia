@@ -12,6 +12,11 @@ import Observation
 struct AppBuild: Equatable, Sendable {
     var version: String?
     var build: String?
+    var forkName: String? = nil
+    var forkVersion: String? = nil
+    var sourceRevision: String? = nil
+    var isFork: Bool { forkName != nil }
+    static let forkPage = URL(string: "https://github.com/ameyniac/Insomnia/tree/ameya/reliability")!
 
     static let current = AppBuild(info: Bundle.main.infoDictionary ?? [:])
 
@@ -23,6 +28,9 @@ struct AppBuild: Equatable, Sendable {
     init(info: [String: Any]) {
         version = Self.nonEmpty(info["CFBundleShortVersionString"])
         build = Self.nonEmpty(info["CFBundleVersion"])
+        forkName = Self.nonEmpty(info["InsomniaForkName"])
+        forkVersion = Self.nonEmpty(info["InsomniaForkVersion"])
+        sourceRevision = Self.nonEmpty(info["InsomniaSourceRevision"])
     }
 
     private static func nonEmpty(_ value: Any?) -> String? {
@@ -32,7 +40,10 @@ struct AppBuild: Equatable, Sendable {
 
     /// For Settings and the launch log: "0.1.0 (1)", or what is missing.
     var label: String {
-        switch (version, build) {
+        if let forkName {
+            return "\(forkName) \(forkVersion ?? version ?? "unversioned") · \(sourceRevision ?? "source build")"
+        }
+        return switch (version, build) {
         case let (version?, build?): "\(version) (\(build))"
         case let (version?, nil): version
         case (nil, _): "no version: this build has no Info.plist"
@@ -326,6 +337,10 @@ final class ReleaseChecker {
 
     /// Starts a check. A click while one is in flight does nothing.
     func check() {
+        guard !installed.isFork else {
+            state = .failed("This custom fork uses reviewed local builds. Upstream releases do not include its changes.")
+            return
+        }
         guard inFlight == nil else { return }
         state = .checking
         Log.info("release check: asking GitHub for the latest release and the releases list")

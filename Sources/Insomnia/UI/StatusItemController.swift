@@ -689,13 +689,15 @@ final class StatusItemController: NSObject {
         // Same for the foreign-sleep line: re-read the bit now, and let the
         // next opening drop the line if sleep is enabled again.
         Task { await manager.recheckForeignSleep() }
+        Task { await RecoveryHealth.shared.refresh() }
         let menu = StatusMenu.menu(
             Self.menuItems(manager: manager, status: status),
             target: self,
             settings: #selector(menuOpenSettings),
             quit: #selector(menuQuit),
             relaunchBrowser: #selector(menuRelaunchBrowser(_:)),
-            stopWaitingForOutput: #selector(menuStopWaitingForOutput(_:))
+            stopWaitingForOutput: #selector(menuStopWaitingForOutput(_:)),
+            copyDiagnostics: #selector(menuCopyDiagnostics)
         )
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
     }
@@ -729,8 +731,21 @@ final class StatusItemController: NSObject {
             commandRunning: manager.commandWarning,
             foreignSleep: manager.foreignSleepWarning,
             outputsWaiting: manager.outputsWaitingForRestore,
-            lidSimulationBuild: LidSimulationBuild.isCompiledIn
+            lidSimulationBuild: LidSimulationBuild.isCompiledIn,
+            recoveryLines: RecoverySummary.lines(manager: manager) + [RecoveryHealth.shared.line, AppBuild.current.label],
+            includeDiagnostics: true
         )
+    }
+
+    @objc private func menuCopyDiagnostics() {
+        Task { @MainActor in
+            await RecoveryHealth.shared.refresh()
+            let result = try? await CancellableCommand().run("/usr/bin/pmset", ["-g"], timeout: 3)
+            let disabled = result.flatMap { $0.succeeded ? PmsetSleepGuard.readSleepDisabled($0.stdout) : nil }
+            let summary = RecoverySummary.diagnostics(manager: manager, health: .shared, sleepDisabled: disabled)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(summary, forType: .string)
+        }
     }
 
     @objc private func menuStopWaitingForOutput(_ sender: NSMenuItem) {

@@ -57,9 +57,10 @@ open "$HOME/Applications/Insomnia.app"
 ```
 
 The installer asks for your Mac administrator password in Terminal.
-The app's existing update checker still reports upstream releases; installing
-an upstream release would replace the fork's changes. For upstream releases
-only, see the [upstream installation guide](docs/install.md).
+Settings identifies this fork as version 0.2.0 with its source revision and
+links to this branch for reviewed updates. Its upstream release checker is
+disabled: an upstream release would replace the fork's changes. For upstream
+releases only, see the [upstream installation guide](docs/install.md).
 
 <details>
 <summary><strong>What the installer changes on your Mac</strong></summary>
@@ -94,7 +95,9 @@ file and explains how upgrades replace them.
    and press Enter.
 2. **Add time.** Click the eye or the countdown during a session.
 3. **End early.** Click the end control next to the countdown. Dragging away cancels.
-4. **Settings and status.** Right-click the eye. Quit asks Insomnia to undo
+4. **Settings and status.** Right-click the eye. The menu includes the deadline,
+   battery and thermal cutoffs, recovery-helper status, pending cleanup, and
+   Copy diagnostics. The diagnostics omit network/device names and raw logs. Quit asks Insomnia to undo
    the session first, and it refuses while a change is still waiting to be
    undone. Saved audio for an output that isn't connected doesn't hold it up.
    Insomnia restores that output if it reconnects while the app runs, or at
@@ -119,8 +122,17 @@ watch, and read `~/Library/Logs/Insomnia/insomnia.log` afterward.
 During a session, closing the lid does each of these, and opening it tries
 to undo them. The timer keeps counting down while the lid is closed.
 
+- **The screen locks.** Locking is on by default. An active external display
+  skips locking unless "Also lock with an external display connected" is on.
+  If locking cannot be confirmed, Insomnia ends the session and attempts to
+  restore normal sleep. The lock uses a private macOS entry point and checks
+  the session's locked state; compatibility must be checked after OS updates.
 - **Display and keyboard light go off.** Insomnia saves their brightness
-  first. With sleep turned off, macOS no longer does this by itself.
+  first. With sleep turned off, macOS no longer does this by itself. If the
+  timer ends while the lid is closed, it restores sleep settings immediately
+  and retains brightness until the lid is known open. While the app runs,
+  deferred brightness is checked every five seconds and restored after wake;
+  quitting preserves it for the next launch.
 - **Apps on the freeze list are frozen.** Freezing sends an app's processes
   `SIGSTOP`, which pauses them until `SIGCONT` on lid open. This fork starts
   with an empty freeze list. "Freeze every other app" is off by
