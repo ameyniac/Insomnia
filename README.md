@@ -1,5 +1,5 @@
 > **Ameya’s reliability fork.** Based on upstream `b8e7e20` (2026-10-27).
-> See [fork changes and validation](docs/fork-validation.md). Hardware trial pending.
+> See [fork changes and validation](docs/fork-validation.md). Installed-Mac trial results and remaining checks are recorded there.
 
 <p align="center">
   <img src="docs/assets/eye-open.svg" alt="Insomnia: an open eye with a round pupil and five lashes above it" width="112">

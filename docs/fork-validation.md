@@ -55,8 +55,8 @@ Environment: macOS 26.5.2, arm64, Xcode Swift 6.3.3.
 - The separate CI suppression-audit helper requires Bash 5.2 or later and
   cannot run with this Mac's Bash 3.2. No suppression directives were changed.
 
-Tests use temporary homes and mocked privileged commands. These results do
-not establish real lid-close, battery-cutoff or crash recovery on this Mac.
+Automated tests use temporary homes and mocked privileged commands. The
+separate installed-Mac observations below provide the hardware evidence.
 The upstream release-validation document records upstream history, not proof
 that this fork passed those hardware checks.
 
@@ -95,9 +95,28 @@ Before relying on it, perform these checks on an open, ventilated desk:
    session ends, then restore the normal floor. Never deliberately overheat
    the Mac; the critical-thermal path is covered by injected test readings.
 
-Installation and these hardware checks are pending. Stop if restoration fails;
-inspect the journal and log before starting another session. The upstream
-uninstaller remains available as `./scripts/uninstall.sh`.
+### Observed results, 2026-11-04
+
+- Installation passed: the signed app launches, and the recovery LaunchAgent
+  is loaded with its 60-second interval and successful runs.
+- Timer cleanup with the lid closed passed: the GUI ended the session at its
+  deadline and recorded sleep, audio, brightness and Low Power Mode
+  restoration. Readback found SleepDisabled 0, powermode 0 and a clean journal.
+  The inspected macOS log did not show an actual Sleep/Wake transition;
+  physical sleep after expiry remains unverified.
+- Manual end passed: clicking the end control produced a user-initiated end
+  and restored sleep four seconds after the session started. No unfinished
+  command or session record remained.
+- Deadline recovery after GUI crash passed: the verified GUI process was
+  force-killed during an active session. With the GUI still absent, launchd
+  restored sleep ten seconds after the saved deadline and cleared the journal.
+  Readback confirmed SleepDisabled 0. The GUI was reopened afterward.
+
+Independent battery-cutoff hardware testing and user confirmation of perceived
+brightness/audio restoration remain pending. The critical-thermal path has
+only injected test coverage. Stop if restoration fails; inspect the journal
+and log before another session. The upstream uninstaller remains available
+as `./scripts/uninstall.sh`.
 
 The app's update checker still points to upstream releases. Installing one of
 those replaces this fork's changes; rebuild this branch to retain them.
