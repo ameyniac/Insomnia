@@ -13,7 +13,7 @@ final class BrandingTests: XCTestCase {
         XCTAssertTrue(outline.contains(CGPoint(x: 12, y: 19)))
         XCTAssertFalse(outline.contains(CGPoint(x: 12, y: 8)))
         let pupil = InsomniacArtwork.pupil(running: false, in: grid)
-        XCTAssertEqual(pupil.boundingBoxOfPath.minY, 10, accuracy: 0.001)
+        XCTAssertEqual(pupil.boundingBoxOfPath.minY, 9.375, accuracy: 0.001)
         XCTAssertEqual(pupil.boundingBoxOfPath.midX, 12, accuracy: 0.001)
         XCTAssertTrue(pupil.contains(CGPoint(x: 12, y: 14)))
         XCTAssertFalse(pupil.contains(CGPoint(x: 12, y: 9)))
@@ -61,10 +61,20 @@ final class BrandingTests: XCTestCase {
         let closed = EyeArtworkView.outline(running: false, closure: 1, in: grid).boundingBoxOfPath
         XCTAssertEqual(open.minX, closed.minX, accuracy: 0.001)
         XCTAssertEqual(open.maxX, closed.maxX, accuracy: 0.001)
-        XCTAssertLessThan(closed.height, 0.2)
+        XCTAssertEqual(closed.maxY, open.maxY, accuracy: 0.001)
+        XCTAssertEqual(closed.height, 9, accuracy: 0.001)
         XCTAssertGreaterThan(open.height, 10)
         XCTAssertFalse(EyeArtworkView.outline(running: false, closure: 1, in: grid).contains(CGPoint(x: 12, y: 14)))
-        XCTAssertEqual(EyeArtworkView.outline(running: true, closure: 1, in: grid), InsomniacArtwork.outline(running: true, in: grid))
+        XCTAssertEqual(EyeArtworkView.outline(running: true, closure: 0, in: grid), InsomniacArtwork.outline(running: true, in: grid))
+        XCTAssertEqual(InsomniacArtwork.pupil(running: false, in: grid), InsomniacArtwork.pupil(running: true, in: grid))
+        // A closed lid encloses no visible interior, while all intermediate
+        // states retain the exact lower outline and horizontal bounds.
+        for step in 0...20 {
+            let aperture = InsomniacArtwork.aperture(openness: CGFloat(step) / 20, closure: 0, in: grid)
+            XCTAssertEqual(aperture.boundingBoxOfPath.maxY, 21, accuracy: 0.001)
+            XCTAssertEqual(aperture.boundingBoxOfPath.minX, 3, accuracy: 0.001)
+            XCTAssertTrue(aperture.contains(CGPoint(x: 12, y: 20)))
+        }
     }
 
     @MainActor func testReducedMotionCountsDownAndLongStartsNeverClaimSuccess() {

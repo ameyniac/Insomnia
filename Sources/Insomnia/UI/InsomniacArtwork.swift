@@ -8,19 +8,29 @@ enum InsomniacArtwork {
         return path.copy(using: &t)!
     }
     static func outline(running: Bool, in rect: CGRect) -> CGPath {
-        let p = CGMutablePath()
-        if running {
-            p.move(to: CGPoint(x: 12, y: 3))
-            p.addCurve(to: CGPoint(x: 21, y: 12), control1: CGPoint(x: 17, y: 3), control2: CGPoint(x: 21, y: 7))
-            p.addCurve(to: CGPoint(x: 12, y: 21), control1: CGPoint(x: 21, y: 17), control2: CGPoint(x: 17, y: 21))
-            p.addCurve(to: CGPoint(x: 3, y: 12), control1: CGPoint(x: 7, y: 21), control2: CGPoint(x: 3, y: 17))
-            p.addCurve(to: CGPoint(x: 12, y: 3), control1: CGPoint(x: 3, y: 7), control2: CGPoint(x: 7, y: 3))
-        } else {
-            p.move(to: CGPoint(x: 3, y: 10))
-            p.addCurve(to: CGPoint(x: 21, y: 10), control1: CGPoint(x: 8, y: 9.5), control2: CGPoint(x: 16, y: 9.5))
-            p.addCurve(to: CGPoint(x: 12, y: 20), control1: CGPoint(x: 21, y: 16), control2: CGPoint(x: 17, y: 20))
-            p.addCurve(to: CGPoint(x: 3, y: 10), control1: CGPoint(x: 7, y: 20), control2: CGPoint(x: 3, y: 16))
+        aperture(openness: running ? 1 : 0, closure: 0, in: rect)
+    }
+
+    /// Eye Study 02: interpolate only the upper lid. The lower two curves
+    /// remain identical from idle through blinking to fully awake.
+    static func aperture(openness: CGFloat, closure: CGFloat, in rect: CGRect) -> CGPath {
+        let open = min(max(openness, 0), 1)
+        let shut = min(max(closure, 0), 1)
+        func point(_ idle: CGPoint, _ awake: CGPoint, _ closed: CGPoint) -> CGPoint {
+            let x = idle.x + (awake.x - idle.x) * open
+            let y = idle.y + (awake.y - idle.y) * open
+            return CGPoint(x: x + (closed.x - x) * shut, y: y + (closed.y - y) * shut)
         }
+        let p = CGMutablePath()
+        p.move(to: CGPoint(x: 3, y: 12))
+        p.addCurve(to: point(CGPoint(x: 12, y: 10.5), CGPoint(x: 12, y: 3), CGPoint(x: 12, y: 21)),
+                   control1: point(CGPoint(x: 6, y: 10.5), CGPoint(x: 3, y: 7), CGPoint(x: 3, y: 17)),
+                   control2: point(CGPoint(x: 9, y: 10.5), CGPoint(x: 7, y: 3), CGPoint(x: 7, y: 21)))
+        p.addCurve(to: CGPoint(x: 21, y: 12),
+                   control1: point(CGPoint(x: 15, y: 10.5), CGPoint(x: 17, y: 3), CGPoint(x: 17, y: 21)),
+                   control2: point(CGPoint(x: 18, y: 10.5), CGPoint(x: 21, y: 7), CGPoint(x: 21, y: 17)))
+        p.addCurve(to: CGPoint(x: 12, y: 21), control1: CGPoint(x: 21, y: 17), control2: CGPoint(x: 17, y: 21))
+        p.addCurve(to: CGPoint(x: 3, y: 12), control1: CGPoint(x: 7, y: 21), control2: CGPoint(x: 3, y: 17))
         p.closeSubpath()
         return map(p, to: rect)
     }
@@ -30,22 +40,9 @@ enum InsomniacArtwork {
         p.move(to: first); for point in points.dropFirst() { p.addLine(to: point) }
         p.closeSubpath(); return p
     }
-    static func brow(in rect: CGRect) -> CGPath {
-        map(polygon([CGPoint(x: 2, y: 6.625), CGPoint(x: 12, y: 5), CGPoint(x: 22, y: 6.625), CGPoint(x: 22, y: 8.625), CGPoint(x: 12, y: 7.25), CGPoint(x: 2, y: 8.625)]), to: rect)
-    }
     static func pupil(running: Bool, offset: CGPoint = .zero, in rect: CGRect) -> CGPath {
         let p = CGMutablePath()
-        if running {
-            p.addEllipse(in: CGRect(x: 9.375 + offset.x, y: 9.375 + offset.y, width: 5.25, height: 5.25))
-        } else {
-            let rx: CGFloat = 4.05, ry: CGFloat = 3.802
-            let dy = sqrt(1 - pow(3.745 / rx, 2))
-            let cy = 10 + ry * dy
-            let start = atan2(-dy, -3.745 / rx), end = atan2(-dy, 3.745 / rx)
-            let t = CGAffineTransform(translationX: 12 + offset.x, y: cy).scaledBy(x: rx, y: ry)
-            p.addArc(center: .zero, radius: 1, startAngle: start, endAngle: end - 2 * .pi, clockwise: true, transform: t)
-            p.closeSubpath()
-        }
+        p.addEllipse(in: CGRect(x: 9.375 + offset.x, y: 9.375 + offset.y, width: 5.25, height: 5.25))
         return map(p, to: rect)
     }
     static let branches: [[CGPoint]] = [

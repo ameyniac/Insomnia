@@ -88,12 +88,14 @@ struct EyePupilLayer: View {
 /// Native foreground styling follows the light or dark menu bar.
 struct EyeMarkView: View {
     let progress: CGFloat
+    var closure: CGFloat = 0
     let reduceMotion: Bool
     var size: CGFloat = 18
     var trackingEnabled = false
     @State private var gaze = CGPoint.zero
 
-    init(isRunning: Bool, reduceMotion: Bool, size: CGFloat = 18, trackingEnabled: Bool = false) {
+    init(isRunning: Bool, reduceMotion: Bool, size: CGFloat = 18, trackingEnabled: Bool = false, closure: CGFloat = 0) {
+        self.closure = closure
         progress = isRunning ? 1 : 0
         self.reduceMotion = reduceMotion; self.size = size; self.trackingEnabled = trackingEnabled
     }
@@ -105,8 +107,9 @@ struct EyeMarkView: View {
     var pupilOpacity: CGFloat { 1 }
 
     var body: some View {
-        EyeArtworkView(running: progress > 0.5, size: size,
-                       gaze: reduceMotion || !trackingEnabled ? .zero : gaze)
+        EyeArtworkView(openness: progress, size: size,
+                       gaze: reduceMotion || !trackingEnabled ? .zero : gaze, closure: closure)
+        .animation(reduceMotion ? nil : .timingCurve(0.23, 1, 0.32, 1, duration: 0.20), value: progress)
         .onChange(of: trackingEnabled) { if !trackingEnabled { gaze = .zero } }
         .onChange(of: reduceMotion) { if reduceMotion { gaze = .zero } }
         .background {
@@ -119,47 +122,48 @@ struct EyeMarkView: View {
     }
 }
 
-/// The eyelid closes toward its upper edge; the brow and stroke weight stay fixed.
-/// Clipping the pupil to that moving lid prevents it showing through a blink.
+/// One eye with an animatable upper lid; pupil and veins are clipped together.
 nonisolated struct EyeArtworkView: View, Animatable {
-    let running: Bool
+    var openness: CGFloat
     var size: CGFloat = 18
     var gaze: CGPoint = .zero
     var closure: CGFloat = 0
-    var animatableData: CGFloat {
-        get { closure }
-        set { closure = newValue }
+    init(openness: CGFloat, size: CGFloat = 18, gaze: CGPoint = .zero, closure: CGFloat = 0) {
+        self.openness = openness; self.size = size; self.gaze = gaze; self.closure = closure
     }
-
+    init(running: Bool, size: CGFloat = 18, gaze: CGPoint = .zero, closure: CGFloat = 0) {
+        self.init(openness: running ? 1 : 0, size: size, gaze: gaze, closure: closure)
+    }
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(openness, closure) }
+        set { openness = newValue.first; closure = newValue.second }
+    }
     static func outline(running: Bool, closure: CGFloat, in rect: CGRect) -> CGPath {
-        let path = InsomniacArtwork.outline(running: running, in: rect)
-        guard !running else { return path }
-        let axis = rect.minY + rect.height * 10 / 24
-        var transform = CGAffineTransform(translationX: 0, y: axis)
-            .scaledBy(x: 1, y: max(0.015, 1 - min(max(closure, 0), 1)))
-            .translatedBy(x: 0, y: -axis)
-        return path.copy(using: &transform)!
+        InsomniacArtwork.aperture(openness: running ? 1 : 0, closure: closure, in: rect)
     }
-
     var body: some View {
         Canvas { context, dimensions in
             let rect = CGRect(origin: .zero, size: dimensions)
-            let outline = Path(Self.outline(running: running, closure: closure, in: rect))
-            var pupilContext = context
-            pupilContext.clip(to: outline)
-            pupilContext.fill(Path(InsomniacArtwork.pupil(running: running, offset: gaze, in: rect)), with: .foreground)
+            let outline = Path(InsomniacArtwork.aperture(openness: openness, closure: closure, in: rect))
+            var interior = context
+            interior.clip(to: outline)
+            interior.fill(Path(InsomniacArtwork.pupil(running: true, offset: gaze, in: rect)), with: .foreground)
+            interior.fill(Path(InsomniacArtwork.veins(in: rect)), with: .foreground)
             context.stroke(outline, with: .foreground, style: EyeMarkView.stroke(size: size))
-            context.fill(Path(running ? InsomniacArtwork.veins(in: rect) : InsomniacArtwork.brow(in: rect)), with: .foreground)
         }
         .foregroundStyle(.primary)
         .frame(width: size, height: size)
     }
 }
 
-/// Five finite blinks, never a repeating idle animation. This view exists only
-/// while the manager is starting; success/failure removes it and cancels its task.
+/// Five finite blinks, never a repeating idle animation. Keep the eye mounted
+/// across startup so confirmation can
+/// animate the same lid open rather than replacing the drawing.
 struct StartupEyeView: View {
     let reduceMotion: Bool
+    var isStarting = true
+    var isRunning = false
+    var trackingEnabled = false
     static let blinkCount = 5
     @State private var closure: CGFloat = 0
     @State private var completed = 0
@@ -171,19 +175,26 @@ struct StartupEyeView: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            EyeArtworkView(running: false, closure: reduceMotion ? 0 : closure)
+            EyeMarkView(isRunning: isRunning && !isStarting, reduceMotion: reduceMotion,
+                        trackingEnabled: trackingEnabled && !isStarting, closure: reduceMotion ? 0 : closure)
                 .frame(width: 20, height: 20)
-            if let label = Self.label(completed: completed, reduceMotion: reduceMotion) {
+            if isStarting, let label = Self.label(completed: completed, reduceMotion: reduceMotion) {
                 Text(label).font(.system(size: 13, weight: .medium, design: .rounded))
                     .monospacedDigit()
                     .animation(nil, value: label)
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Verifying session")
-        .accessibilityValue(completed < Self.blinkCount ? "\(Self.blinkCount - completed) seconds of the initial check remaining" : "Still verifying")
-        .help("Verifying that sleep stays disabled before confirming the session.")
-        .task {
+        .accessibilityLabel(isStarting ? "Verifying session" : "Insomniac")
+        .accessibilityValue(!isStarting ? (isRunning ? "Running" : "Idle") : completed < Self.blinkCount ? "\(Self.blinkCount - completed) seconds of the initial check remaining" : "Still verifying")
+        .help(isStarting ? "Verifying that sleep stays disabled before confirming the session." : "Insomniac")
+        .task(id: isStarting) {
+            completed = 0
+            guard isStarting else {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.20)) { closure = 0 }
+                return
+            }
+            closure = 0
             do {
                 for index in 0..<Self.blinkCount {
                     try Task.checkCancellation()

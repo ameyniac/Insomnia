@@ -387,7 +387,7 @@ final class PackagingTests: XCTestCase {
             XCTAssertTrue(FileManager.default.fileExists(atPath: bundle.appendingPathComponent(rel).path), rel)
         }
         let info = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: bundle.appendingPathComponent("Contents/Info.plist")), format: nil) as? [String: Any])
-        XCTAssertEqual(info["InsomniaForkVersion"] as? String, "0.3.1")
+        XCTAssertEqual(info["InsomniaForkVersion"] as? String, "0.3.2")
         XCTAssertEqual(info["InsomniaSourceRevision"] as? String, "source-archive", "a source copy without Git must not invent a revision")
         let perms = try FileManager.default.attributesOfItem(atPath: Paths.backstopScript(inBundle: bundle).path)[.posixPermissions] as? Int
         XCTAssertEqual(perms.map { $0 & 0o111 }, 0o111, "backstop.sh is executable")
@@ -644,9 +644,9 @@ final class PackagingTests: XCTestCase {
         for color in ["#1645F5", "#53A5FF", "#0D28A6", "#FFFFFF"] {
             XCTAssertTrue(committed.contains(color))
         }
-        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.outline(running: false, in: grid))))
-        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.pupil(running: false, in: grid))))
-        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.brow(in: grid))))
+        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.outline(running: true, in: grid))))
+        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.pupil(running: true, in: grid))))
+        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.veins(in: grid))))
         XCTAssertTrue(committed.contains("stroke-width=\"1\""))
         XCTAssertTrue(committed.contains("stroke-linejoin=\"round\""))
     }

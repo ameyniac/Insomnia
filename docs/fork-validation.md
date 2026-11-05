@@ -296,3 +296,27 @@ power, deadline or audio behavior changed. The agreed final version is 1.0.0
 after the remaining installed hardware checks pass.
 The follow-up 31-case artwork and packaging run also passed, including the
 new blink-frame rendering checks and 0.3.1 bundle metadata.
+
+## 0.3.2 consolidated eye artwork (2026-11-05)
+
+Ameya selected Paper Eye Study 02 and the fully open running eye for the
+Overlap app icon. Idle, blink and running now share one 24-unit geometry:
+the upper lid moves over a fixed lower contour, pupil and tapered veins.
+The eyebrow is removed. Pupil tracking remains bounded and the moving lid
+clips both pupil and veins. The app icon uses the exact running geometry,
+centered in white over the existing cobalt artwork; PNG, ICNS and README
+SVG assets were regenerated together.
+
+The status eye stays mounted across startup and confirmation, allowing a
+continuous opening transition rather than replacing drawings. Startup
+still uses five finite blinks and the same safety verification. Reduced
+Motion retains the static eye and numeric countdown. The eye opens fully
+only after confirmation; interrupted blinks settle into the new state.
+
+The 87-test artwork, packaging, startup and status run passed. Rendered
+blink frames and the generated app icon were visually inspected against
+Paper. Installed motion and the remaining hardware checks still require
+Ameya. This is a 0.3.2 test build; 1.0.0 remains reserved for final validation.
+
+After the final interrupted-blink adjustment, all 64 artwork, startup and
+status tests passed again with no failures.

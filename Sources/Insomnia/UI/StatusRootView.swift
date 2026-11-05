@@ -102,21 +102,13 @@ struct StatusRootView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// A closed eye while idle; it opens while sleep is held, so the app
-    /// visibly does something even when Low Power Mode is not showing.
+    /// Keep one eye mounted through idle, startup and confirmation.
     private var icon: some View {
-        Group {
-            if model.phase == .starting {
-                StartupEyeView(reduceMotion: reduceMotion)
-            } else {
-                EyeMarkView(isRunning: eyeOpen, reduceMotion: reduceMotion,
-                            trackingEnabled: !model.menuOpen && !model.phase.isEntering)
-                    .frame(width: 20, height: 20)
-                    .contentShape(Rectangle())
-                    .onTapGesture(perform: onTapIcon)
-                    .accessibilityLabel("Insomniac")
-            }
-        }
+        StartupEyeView(reduceMotion: reduceMotion, isStarting: model.phase == .starting,
+                       isRunning: eyeOpen,
+                       trackingEnabled: !model.menuOpen && !model.phase.isEntering)
+            .contentShape(Rectangle())
+            .onTapGesture { if model.phase != .starting { onTapIcon() } }
     }
 
     /// All three slots are in the layout whenever they are present;

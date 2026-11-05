@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// Approved Overlap icon. Uses exactly the same idle geometry as the menu bar.
+/// Approved Overlap icon. Uses exactly the same running geometry as the menu bar.
 enum AppIconArtwork {
     static let canvas: CGFloat = 1024
     static let tileInset: CGFloat = 100
@@ -10,13 +10,12 @@ enum AppIconArtwork {
     static let lashesFromPixels = 32 // Kept for the generator's existing API.
     static let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
     static let markShare: CGFloat = 168.0 / 256
-    static let mark = CGRect(x: 100 + 44 * 824.0 / 256, y: 100 + 38 * 824.0 / 256, width: 168 * 824.0 / 256, height: 168 * 824.0 / 256)
+    static let mark = CGRect(x: 100 + 44 * 824.0 / 256, y: 100 + 44 * 824.0 / 256, width: 168 * 824.0 / 256, height: 168 * 824.0 / 256)
     static let markWithoutLashes = mark
     static func placement(lashes: Bool) -> CGRect { mark }
     static func inked(in rect: CGRect, lashes: Bool) -> CGRect {
-        InsomniacArtwork.outline(running: false, in: rect).boundingBoxOfPath
+        InsomniacArtwork.outline(running: true, in: rect).boundingBoxOfPath
             .insetBy(dx: -rect.width / 48, dy: -rect.width / 48)
-            .union(InsomniacArtwork.brow(in: rect).boundingBoxOfPath)
     }
     static func petal(light: Bool) -> CGPath {
         let p = CGMutablePath()
@@ -47,25 +46,25 @@ enum AppIconArtwork {
             ctx.setFillColor(BrandPalette.RGB(hex: color).cgColor); ctx.addPath(petal(light: light)); ctx.fillPath()
         }
         ctx.setFillColor(BrandPalette.RGB(hex: 0xFFFFFF).cgColor)
-        ctx.addPath(InsomniacArtwork.pupil(running: false, in: mark)); ctx.fillPath()
-        ctx.addPath(InsomniacArtwork.brow(in: mark)); ctx.fillPath()
+        ctx.addPath(InsomniacArtwork.pupil(running: true, in: mark)); ctx.fillPath()
+        ctx.addPath(InsomniacArtwork.veins(in: mark)); ctx.fillPath()
         ctx.setStrokeColor(BrandPalette.RGB(hex: 0xFFFFFF).cgColor)
         ctx.setLineWidth(max(mark.width / 24, minimumStrokePixels / scale)); ctx.setLineCap(.round); ctx.setLineJoin(.round)
-        ctx.addPath(InsomniacArtwork.outline(running: false, in: mark)); ctx.strokePath()
+        ctx.addPath(InsomniacArtwork.outline(running: true, in: mark)); ctx.strokePath()
     }
     static func svg() -> String {
         let grid = CGRect(x: 0, y: 0, width: 24, height: 24)
         return """
         <svg xmlns="http://www.w3.org/2000/svg" width="112" height="112" viewBox="100 100 824 824" role="img" aria-labelledby="eo-title eo-desc">
           <title id="eo-title">Insomniac</title>
-          <desc id="eo-desc">A white half-open eye over overlapping cobalt blue shapes.</desc>
+          <desc id="eo-desc">A white wide-open eye over overlapping cobalt blue shapes.</desc>
           <rect x="100" y="100" width="824" height="824" rx="\(number(tile.width * cornerShare))" fill="#1645F5"/>
           <path d="\(pathData(petal(light: true)))" fill="#53A5FF"/>
           <path d="\(pathData(petal(light: false)))" fill="#0D28A6"/>
           <g transform="translate(\(number(mark.minX)) \(number(mark.minY))) scale(\(number(mark.width / 24)))">
-            <path d="\(pathData(InsomniacArtwork.pupil(running: false, in: grid)))" fill="#FFFFFF"/>
-            <path d="\(pathData(InsomniacArtwork.outline(running: false, in: grid)))" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="\(pathData(InsomniacArtwork.brow(in: grid)))" fill="#FFFFFF"/>
+            <path d="\(pathData(InsomniacArtwork.pupil(running: true, in: grid)))" fill="#FFFFFF"/>
+            <path d="\(pathData(InsomniacArtwork.outline(running: true, in: grid)))" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="\(pathData(InsomniacArtwork.veins(in: grid)))" fill="#FFFFFF"/>
           </g>
         </svg>
 

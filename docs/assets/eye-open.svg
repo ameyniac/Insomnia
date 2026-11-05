@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="112" height="112" viewBox="100 100 824 824" role="img" aria-labelledby="eo-title eo-desc">
   <title id="eo-title">Insomniac</title>
-  <desc id="eo-desc">A white half-open eye over overlapping cobalt blue shapes.</desc>
+  <desc id="eo-desc">A white wide-open eye over overlapping cobalt blue shapes.</desc>
   <rect x="100" y="100" width="824" height="824" rx="180.25" fill="#1645F5"/>
   <path d="M222.3125 209.4375 C534.5312 141.8438 814.5625 357.5 808.125 814.5625 C483.0312 882.1562 203 669.7188 222.3125 209.4375 Z" fill="#53A5FF"/>
   <path d="M801.6875 209.4375 C489.4688 141.8438 209.4375 357.5 215.875 814.5625 C540.9688 882.1562 821 669.7188 801.6875 209.4375 Z" fill="#0D28A6"/>
-  <g transform="translate(241.625 222.3125) scale(22.5312)">
-    <path d="M8.255 10 C7.4034 11.9417 8.3898 14.1637 10.4581 14.9632 C12.5264 15.7626 14.8934 14.8366 15.745 12.895 C16.1517 11.9677 16.1517 10.9272 15.745 10 Z" fill="#FFFFFF"/>
-    <path d="M3 10 C8 9.5 16 9.5 21 10 C21 16 17 20 12 20 C7 20 3 16 3 10 Z" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M2 6.625 L12 5 L22 6.625 L22 8.625 L12 7.25 L2 8.625 Z" fill="#FFFFFF"/>
+  <g transform="translate(241.625 241.625) scale(22.5312)">
+    <path d="M14.625 12 C14.625 13.4497 13.4497 14.625 12 14.625 C10.5503 14.625 9.375 13.4497 9.375 12 C9.375 10.5503 10.5503 9.375 12 9.375 C13.4497 9.375 14.625 10.5503 14.625 12 Z" fill="#FFFFFF"/>
+    <path d="M3 12 C3 7 7 3 12 3 C17 3 21 7 21 12 C21 17 17 21 12 21 C7 21 3 17 3 12 Z" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M3.858 8.427 L6.076 8.963 L6.75 10.25 L6.424 8.537 L4.142 7.573 Z M6.444 8.944 L7.25 7.75 L6.056 8.556 Z M8.067 3.874 L8.783 5.669 L10.25 6 L9.217 5.331 L8.933 3.626 Z M15.098 3.549 L14.75 5.25 L15.902 3.951 Z M19.626 7.067 L17.828 7.785 L17.25 9.5 L18.172 8.215 L19.874 7.933 Z M18.194 7.806 L17 7 L17.806 8.194 Z M20.624 14.317 L18.701 13.979 L17.75 15.25 L18.799 14.521 L20.376 15.183 Z M16.447 19.944 L15.991 17.868 L14.5 17.25 L15.509 18.132 L15.553 20.056 Z M7.874 20 L8.5 18.25 L7.126 19.5 Z M3.609 14.937 L5.438 14.268 L6.75 15.25 L5.562 13.732 L3.391 14.063 Z M5.736 14.141 L6.25 12.75 L5.264 13.859 Z" fill="#FFFFFF"/>
   </g>
 </svg>
