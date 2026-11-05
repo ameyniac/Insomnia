@@ -395,3 +395,18 @@ The core undocked lock, active-session reopening, closed-lid expiry, actual
 system sleep and post-wake cleanup trial passed. External-display policy,
 starting with the lid already closed, and live Copy diagnostics inspection
 remain unverified on hardware. Notification permission remains disabled.
+
+## Live copied diagnostics (2026-11-05)
+
+Ameya supplied the installed app's Copy Diagnostics output, checked at
+23:17:49Z. It reported no active session, no pending cleanup, a successful
+helper run, SleepDisabled 0, and no session error. The 10% battery cutoff,
+critical-heat protection, lock-on-close and disabled docked locking matched
+the expected configuration. The copied summary contained no network or
+device names. Pending-cleanup presentation remains covered by automated
+checks rather than this clean-state hardware observation.
+
+The output exposed the old fork name in bundle metadata. InsomniaForkName
+now reads Insomniac, retaining version and source-revision diagnostics and
+fork update routing. This metadata correction will ship in the next build;
+the installed 0.3.3 still carries its original label.
