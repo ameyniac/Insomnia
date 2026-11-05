@@ -221,3 +221,20 @@ as `./scripts/uninstall.sh`.
 
 Version 0.2.0 disables the upstream update check for fork builds and links to
 this branch. Install a reviewed build from this branch to retain the changes.
+
+
+## Independent battery cutoff observed, 2026-11-05
+
+On installed 0.2.1, the user started a ten-minute session on battery power
+with the lid open (36% battery). The exact GUI process was force-killed,
+then a temporary 99% cutoff was applied. With the GUI absent, the helper
+reported `stop-battery` at 10:15:08 PST, restored sleep at 10:15:09 and cleared
+Low Power Mode and the journal at 10:15:10. The original deadline was
+10:23:18, so this was battery-driven recovery before timer expiry.
+
+The original 10% end floor and 40% Low Power threshold were restored and the
+GUI reopened. Readback confirmed SleepDisabled 0, no session and a clean
+journal. This verifies the installed worker's independent battery path.
+Version 0.2.2 uses the unchanged worker, but its new deferred-audio behavior
+still needs an installed physical trial. Actual system sleep after closed-lid
+expiry, external-display lock policies and live diagnostics UI remain pending.
