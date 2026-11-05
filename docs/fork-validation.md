@@ -78,6 +78,29 @@ Version 0.2.0 validation:
   build below. This update reruns its relevant build/install fixtures, not the
   entire shell suite.
 
+## Version 0.2.1: initial closed-lid event
+
+The November 5 hardware trial on 0.2.0 started its lid observer at
+09:24:57 PST with the lid already closed. The log recorded Low Power Mode,
+but no close-event delivery, lock attempt, brightness journal or mute attempt.
+The user reported continuous headphone audio and no lock screen. Opening at
+09:25:09 and manual End at 09:25:22 restored the normal sleep setting; no
+session or pending journal remained. This trial did not exercise native
+locking or headphone muting, so neither is marked as passing.
+
+The observer now queues an initial closed state through the normal two-second
+debounce and re-reads after notification registration. Reopening during setup
+cancels the pending close and delivers the open needed to restore any journal
+retained on relaunch. Duplicate notifications do not repeat the initial close,
+and stopping cancels it. The fork link and source-install instructions now
+point to `main`, where the previous work was merged.
+
+The reproduction failed before the fix. Afterward, all six new Swift Testing
+tests (including a parameterized open/unknown case) passed, as did 179 existing
+lid, recovery, integration, packaging and release-workflow tests. The tests
+register the native observer but inject lid reads and fake all lock, audio,
+brightness and power effects. Physical retesting of 0.2.1 remains pending.
+
 ## Local verification, 2026-11-04
 
 Environment: macOS 26.5.2, arm64, Xcode Swift 6.3.3.

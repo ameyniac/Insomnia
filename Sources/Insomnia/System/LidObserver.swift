@@ -20,6 +20,7 @@ final class LidObserver {
     private let read: () -> Bool?
     private let debounce: TimeInterval
     private var lastDelivered: Bool = false
+    private var initialClosePending = false
     private var pending: Bool?
     private var debounceTimer: Timer?
     private var settledWaiter: ((Bool) -> Void)?
@@ -50,6 +51,11 @@ final class LidObserver {
     func start() {
         guard port == nil else { return }
         lastDelivered = read() ?? false
+        // Startup may finish after the hinge closes (for example while the
+        // sleep command runs). That initial close still owes its actions.
+        // Retain the observed baseline so a quick reopen can undo any lid
+        // actions kept by reconciliation from a previous process.
+        initialClosePending = lastDelivered
         service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
         guard service != 0 else {
             Log.error("lid observer: IOPMrootDomain not found")
@@ -73,12 +79,15 @@ final class LidObserver {
             return
         }
         Log.info("lid observer started (lid \(lastDelivered ? "closed" : "open"))")
+        // Read again after registration to include a close during setup.
+        handleInterest()
     }
 
     func stop() {
         debounceTimer?.invalidate()
         debounceTimer = nil
         pending = nil
+        initialClosePending = false
         settledWaiter = nil
         if notification != 0 {
             IOObjectRelease(notification)
@@ -114,7 +123,8 @@ final class LidObserver {
     /// Internal so a test can deliver one.
     func handleInterest() {
         guard let now = read() else { return }
-        guard now != lastDelivered else {
+        if !now { initialClosePending = false }
+        guard now != lastDelivered || initialClosePending else {
             // Flapped back to the delivered state; drop the pending change.
             if pending != nil {
                 pending = nil
@@ -146,12 +156,13 @@ final class LidObserver {
         debounceTimer = nil
         guard let candidate = pending else { return }
         pending = nil
-        guard let now = read(), now == candidate, now != lastDelivered else {
+        guard let now = read(), now == candidate, (now != lastDelivered || initialClosePending) else {
             Log.info("lid observer: change flapped within \(Int(debounce)) s, ignored")
             settled(delivered: false)
             return
         }
         lastDelivered = now
+        initialClosePending = false
         Log.info("lid \(now ? "closed" : "open")")
         onChange?(now)
         settled(delivered: true)
