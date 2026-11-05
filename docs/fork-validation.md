@@ -272,3 +272,27 @@ layout, microphone copy, password handling, recovery presentation and startup,
 with no failures. All four native Settings tabs were rendered and visually
 inspected in light and dark appearances. The unchanged 248-case recovery
 script suite was not repeated for this UI change.
+
+## 0.3.1 startup feedback (2026-11-05)
+
+The installed 0.3.0 trial confirmed pupil tracking, all four Settings tabs,
+two-minute session entry, the end button, and Escape cancelling unsubmitted
+entry. The visible five-second startup delay is the existing sleep-guard
+verification; it counts toward the requested session duration.
+
+At Ameya's request, startup now uses five finite blinks, approximately one
+per second, instead of “Starting…”. Each blink closes in 100 ms and reopens
+in 160 ms. The brow stays fixed and the pupil is clipped by the moving lid.
+Only confirmed session state shows the wide-awake eye. A slower check stops
+blinking after five cycles and shows “Verifying…”; a failed check restores
+the duration fields and error details. Reduce Motion keeps the eye still
+and shows 5, 4, 3, 2, 1, then “Verifying…” if needed. The animation task is
+cancelled when the pending-start view disappears and never loops at idle.
+
+The 63-case branding/startup/status run passed, including slow starts,
+refusals, retries and fixed-width duration entry. Blink frames were rendered
+and inspected at reference and native menu-bar sizes. No session, recovery,
+power, deadline or audio behavior changed. The agreed final version is 1.0.0
+after the remaining installed hardware checks pass.
+The follow-up 31-case artwork and packaging run also passed, including the
+new blink-frame rendering checks and 0.3.1 bundle metadata.

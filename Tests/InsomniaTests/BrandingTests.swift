@@ -56,6 +56,54 @@ final class BrandingTests: XCTestCase {
         }
     }
 
+    func testBlinkClosesTheLidWithoutMovingItsHorizontalBounds() {
+        let open = EyeArtworkView.outline(running: false, closure: 0, in: grid).boundingBoxOfPath
+        let closed = EyeArtworkView.outline(running: false, closure: 1, in: grid).boundingBoxOfPath
+        XCTAssertEqual(open.minX, closed.minX, accuracy: 0.001)
+        XCTAssertEqual(open.maxX, closed.maxX, accuracy: 0.001)
+        XCTAssertLessThan(closed.height, 0.2)
+        XCTAssertGreaterThan(open.height, 10)
+        XCTAssertFalse(EyeArtworkView.outline(running: false, closure: 1, in: grid).contains(CGPoint(x: 12, y: 14)))
+        XCTAssertEqual(EyeArtworkView.outline(running: true, closure: 1, in: grid), InsomniacArtwork.outline(running: true, in: grid))
+    }
+
+    @MainActor func testReducedMotionCountsDownAndLongStartsNeverClaimSuccess() {
+        XCTAssertEqual((0..<5).compactMap { StartupEyeView.label(completed: $0, reduceMotion: true) }, ["5", "4", "3", "2", "1"])
+        for completed in 0..<5 { XCTAssertNil(StartupEyeView.label(completed: completed, reduceMotion: false)) }
+        XCTAssertEqual(StartupEyeView.label(completed: 5, reduceMotion: false), "Verifying…")
+        XCTAssertEqual(StartupEyeView.label(completed: 5, reduceMotion: true), "Verifying…")
+    }
+
+    @MainActor func testBlinkFramesRenderAtMenuBarSize() throws {
+        for closure: CGFloat in [0, 0.5, 1] {
+            let raster = try Raster.render(EyeArtworkView(running: false, closure: closure), scheme: .light, scale: 2)
+            XCTAssertEqual(raster.width, 36)
+            XCTAssertGreaterThan(raster.count { $0.alpha > 0.2 }, 25)
+            XCTAssertLessThan(raster.count { $0.alpha > 0.2 }, raster.total / 2)
+        }
+        if let folder = ProcessInfo.processInfo.environment["INSOMNIAC_UI_SNAPSHOTS"] {
+            let preview = HStack(spacing: 20) {
+                ForEach([0.0, 0.5, 1.0], id: \.self) { closure in
+                    VStack(spacing: 12) {
+                        EyeArtworkView(running: false, size: 96, closure: closure)
+                        EyeArtworkView(running: false, closure: closure)
+                    }
+                }
+                VStack(spacing: 12) {
+                    EyeArtworkView(running: true, size: 96)
+                    EyeArtworkView(running: true)
+                }
+            }.padding(24).background(.white).environment(\.colorScheme, .light)
+            let renderer = ImageRenderer(content: preview)
+            renderer.scale = 2
+            let image = try XCTUnwrap(renderer.cgImage)
+            let bitmap = NSBitmapImageRep(cgImage: image)
+            try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                .write(to: URL(fileURLWithPath: folder).appendingPathComponent("startup-blink.png"))
+        }
+    }
+
     func testAppIconRetainsTransparentMarginsAndWhiteEyeAtAllSizes() throws {
         for size in [16, 32, 64, 128, 256, 512, 1024] {
             let pixels = IconPixels(try XCTUnwrap(AppIconArtwork.render(pixels: size)))

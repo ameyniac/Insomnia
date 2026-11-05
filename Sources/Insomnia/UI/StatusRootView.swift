@@ -41,9 +41,9 @@ struct StatusRootView: View {
     /// session ends, and that window must not offer an end ring and a
     /// countdown for a session that is already gone.
     private var showsRunningControls: Bool { model.phase.showsRunningControls && isRunning }
-    /// Pending starts show a status label; confirmed sessions show time.
-    private var showsCountdown: Bool { model.phase == .starting || showsRunningControls }
-    /// Only a confirmed session opens the eye. Pending starts say Starting….
+    /// Pending starts use the finite blink sequence; confirmed sessions show time.
+    private var showsCountdown: Bool { showsRunningControls }
+    /// Only a confirmed session opens the eye fully.
     private var eyeOpen: Bool { isRunning }
 
     private var countdownText: String {
@@ -105,11 +105,18 @@ struct StatusRootView: View {
     /// A closed eye while idle; it opens while sleep is held, so the app
     /// visibly does something even when Low Power Mode is not showing.
     private var icon: some View {
-        EyeMarkView(isRunning: eyeOpen, reduceMotion: reduceMotion, trackingEnabled: !model.menuOpen && !model.phase.isEntering && model.phase != .starting)
-            .frame(width: 20, height: 20)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onTapIcon)
-            .accessibilityLabel("Insomniac")
+        Group {
+            if model.phase == .starting {
+                StartupEyeView(reduceMotion: reduceMotion)
+            } else {
+                EyeMarkView(isRunning: eyeOpen, reduceMotion: reduceMotion,
+                            trackingEnabled: !model.menuOpen && !model.phase.isEntering)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onTapIcon)
+                    .accessibilityLabel("Insomniac")
+            }
+        }
     }
 
     /// All three slots are in the layout whenever they are present;
@@ -172,11 +179,7 @@ struct StatusRootView: View {
         return before + Self.slotSpacing * CGFloat(index)
     }
 
-    /// The live countdown while running, or the projected one while a start
-    /// is pending: the manager has to arm the recovery agent and disable
-    /// sleep first, and either can take seconds. The projection is what the
-    /// session will read once confirmed, so the live text replaces it
-    /// without a jump; the hold-to-end ring waits for the confirmation.
+    /// Time belongs to confirmed sessions; startup has its own blink feedback.
     private var countdown: some View {
         Text(countdownText)
             .font(.system(size: 13, weight: .medium, design: .rounded))

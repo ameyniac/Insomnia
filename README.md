@@ -57,7 +57,7 @@ open "$HOME/Applications/Insomnia.app"
 ```
 
 The installer asks for your Mac administrator password in Terminal.
-Settings shows version 0.3.0; Diagnostics includes its source revision.
+Settings shows version 0.3.1; Diagnostics includes its source revision.
 Advanced settings links to this branch for reviewed updates. Its upstream release checker is
 disabled: an upstream release would replace the fork's changes. For upstream
 releases only, see the [upstream installation guide](docs/install.md).
