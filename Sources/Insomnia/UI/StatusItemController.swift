@@ -699,6 +699,8 @@ final class StatusItemController: NSObject {
             stopWaitingForOutput: #selector(menuStopWaitingForOutput(_:)),
             copyDiagnostics: #selector(menuCopyDiagnostics)
         )
+        model.menuOpen = true
+        defer { model.menuOpen = false }
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
     }
 
@@ -733,19 +735,13 @@ final class StatusItemController: NSObject {
             outputsWaiting: manager.outputsWaitingForRestore,
             lidSimulationBuild: LidSimulationBuild.isCompiledIn,
             recoveryLines: RecoverySummary.lines(manager: manager) + [RecoveryHealth.shared.line],
+            recoveryWarning: RecoveryHealth.shared.snapshot.warning ? RecoveryHealth.shared.line : nil,
             includeDiagnostics: true
         )
     }
 
     @objc private func menuCopyDiagnostics() {
-        Task { @MainActor in
-            await RecoveryHealth.shared.refresh()
-            let result = try? await CancellableCommand().run("/usr/bin/pmset", ["-g"], timeout: 3)
-            let disabled = result.flatMap { $0.succeeded ? PmsetSleepGuard.readSleepDisabled($0.stdout) : nil }
-            let summary = RecoverySummary.diagnostics(manager: manager, health: .shared, sleepDisabled: disabled)
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(summary, forType: .string)
-        }
+        Task { await RecoverySummary.copy(manager: manager) }
     }
 
     @objc private func menuStopWaitingForOutput(_ sender: NSMenuItem) {

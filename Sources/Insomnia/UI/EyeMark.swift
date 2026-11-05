@@ -84,95 +84,47 @@ struct EyePupilLayer: View {
     }
 }
 
-/// The mark as it appears in the status item: a closed eye while idle (the
-/// lens shaded, lashes below), which opens while sleep is held (the lens
-/// clear with a pupil, lashes above). The change is a blink: the lid lifts
-/// while the lashes swap sides, and the pupil arrives behind it a beat
-/// later (`Motion.pupilOpenDelay`) and shrinks away as the lid drops; or a
-/// crossfade under Reduce Motion, where the pupil only fades.
-/// Everything is drawn in `.primary`, so the mark follows the light or dark
-/// menu bar and never takes a tint.
+/// Shared approved eye artwork, with a bounded pupil offset near the cursor.
+/// Native foreground styling follows the light or dark menu bar.
 struct EyeMarkView: View {
-    /// 0 closed, 1 open.
     let progress: CGFloat
     let reduceMotion: Bool
-    var size: CGFloat = 17
+    var size: CGFloat = 18
+    var trackingEnabled = false
+    @State private var gaze = CGPoint.zero
 
-    /// What the blink's animations are keyed on. Keying on both means a
-    /// Reduce Motion change mid-blink is itself a value change, so it
-    /// crossfades from the current presentation instead of jumping, and
-    /// any delayed pupil animation still pending is retargeted.
-    struct BlinkState: Equatable {
-        var progress: CGFloat
-        var reduceMotion: Bool
+    init(isRunning: Bool, reduceMotion: Bool, size: CGFloat = 18, trackingEnabled: Bool = false) {
+        progress = isRunning ? 1 : 0
+        self.reduceMotion = reduceMotion; self.size = size; self.trackingEnabled = trackingEnabled
     }
-
-    init(isRunning: Bool, reduceMotion: Bool, size: CGFloat = 17) {
-        self.init(progress: isRunning ? 1 : 0, reduceMotion: reduceMotion, size: size)
+    init(progress: CGFloat, reduceMotion: Bool = true, size: CGFloat = 18) {
+        self.progress = progress; self.reduceMotion = reduceMotion; self.size = size
     }
-
-    /// One frozen frame of the blink, for previews.
-    init(progress: CGFloat, reduceMotion: Bool = true, size: CGFloat = 17) {
-        self.progress = progress
-        self.reduceMotion = reduceMotion
-        self.size = size
-    }
-
-    static func stroke(size: CGFloat) -> StrokeStyle {
-        StrokeStyle(lineWidth: EyeLensGeometry.lineWidth(for: size), lineCap: .round, lineJoin: .round)
-    }
-
-    private var state: BlinkState { BlinkState(progress: progress, reduceMotion: reduceMotion) }
-    private var opening: Bool { progress > 0.5 }
-
-    /// The pupil's scale for this state: full in the open eye, shrunk in
-    /// the closed one, and never anything else under Reduce Motion. A frozen
-    /// frame between the two is drawn part way, for previews.
-    var pupilScale: CGFloat {
-        reduceMotion ? 1 : Motion.pupilClosedScale + (1 - Motion.pupilClosedScale) * min(max(progress, 0), 1)
-    }
-
-    /// The pupil's opacity for this state: present in the open eye, gone in
-    /// the closed one.
-    var pupilOpacity: CGFloat {
-        min(max(progress, 0), 1)
-    }
+    static func stroke(size: CGFloat) -> StrokeStyle { StrokeStyle(lineWidth: size / 24, lineCap: .round, lineJoin: .round) }
+    var pupilScale: CGFloat { 1 }
+    var pupilOpacity: CGFloat { 1 }
 
     var body: some View {
-        // The layers are drawn opaque and used as a mask over a single
-        // `.primary` fill: the label colour is translucent, and this keeps the
-        // lid, outline and lashes from doubling up where they overlap.
-        Rectangle()
-            .fill(.primary)
-            .mask { layers }
-            .frame(width: size, height: size)
-    }
-
-    private var layers: some View {
-        let stroke = Self.stroke(size: size)
-        return ZStack {
-            EyeLens()
-                .stroke(.black, style: stroke)
-            // The pupil runs on its own curve, keyed on the eye state so a
-            // close during its opening delay retargets it from wherever it is.
-            EyePupilLayer(scale: pupilScale, opacity: pupilOpacity)
-                .animation(Motion.pupil(opening: opening, reduceMotion: reduceMotion), value: state)
-            // The lid and the lashes share the lid's curve, so the lash
-            // hand-over follows the lid edge. Under Reduce Motion the closed
-            // lid crossfades instead of lifting; the lashes hand over the
-            // same way in both modes.
-            Group {
-                EyeLid(progress: reduceMotion ? 0 : progress)
-                    .fill(.black)
-                    .opacity(reduceMotion ? 1 - progress : 1)
-                EyeLashes(side: .below)
-                    .stroke(.black, style: stroke)
-                    .modifier(EyeLashFade(progress: progress, side: .below))
-                EyeLashes(side: .above)
-                    .stroke(.black, style: stroke)
-                    .modifier(EyeLashFade(progress: progress, side: .above))
+        Canvas { context, dimensions in
+            let rect = CGRect(origin: .zero, size: dimensions)
+            let running = progress > 0.5
+            let outline = Path(InsomniacArtwork.outline(running: running, in: rect))
+            var pupilContext = context
+            pupilContext.clip(to: outline)
+            pupilContext.fill(Path(InsomniacArtwork.pupil(running: running, offset: reduceMotion || !trackingEnabled ? .zero : gaze, in: rect)), with: .foreground)
+            context.stroke(outline, with: .foreground, style: Self.stroke(size: size))
+            context.fill(Path(running ? InsomniacArtwork.veins(in: rect) : InsomniacArtwork.brow(in: rect)), with: .foreground)
+        }
+        .foregroundStyle(.primary)
+        .frame(width: size, height: size)
+        .onChange(of: trackingEnabled) { if !trackingEnabled { gaze = .zero } }
+        .onChange(of: reduceMotion) { if reduceMotion { gaze = .zero } }
+        .background {
+            if trackingEnabled && !reduceMotion {
+                EyeProximityReader(enabled: true, running: progress > 0.5) { target in
+                    gaze = target
+                }
             }
-            .animation(Motion.blink(opening: opening, reduceMotion: reduceMotion), value: state)
         }
     }
 }

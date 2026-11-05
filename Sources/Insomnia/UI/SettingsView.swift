@@ -11,6 +11,7 @@ struct SettingsView: View {
     let loginItem: LoginItem
     /// The "Check for updates" button's one request and its report.
     let releases: ReleaseChecker
+    var build: AppBuild = .current
 
     @State private var newPreset = ""
     @State private var presetError: String?
@@ -24,19 +25,76 @@ struct SettingsView: View {
     /// now (the freeze list excluded); refreshed on appear and toggle.
     @State private var wouldFreeze: [String] = []
 
+    enum Page: String, CaseIterable { case general = "General", lid = "Lid Behavior", safety = "Safety", advanced = "Advanced" }
+    @State var page: Page = .general
+    @State private var detail: String?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
     var body: some View {
-        Form {
-            sessionSection
-            lidSection
-            agentSection
-            powerSection
-            networkSection
-            recoverySection
-            appSection
+        VStack(spacing: 0) {
+            Picker("Settings", selection: $page) {
+                ForEach(Page.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 28).padding(.vertical, 18)
+            .background {
+                if reduceTransparency || contrast == .increased { Color(nsColor: .windowBackgroundColor) }
+                else { Rectangle().fill(.regularMaterial) }
+            }
+            Form {
+                switch page {
+                case .general:
+                    Section("Make It Yours") {
+                        Toggle("Launch at Login", isOn: launchAtLogin)
+                        loginItemNote
+                    }
+                    sessionSection
+                    Section { LabeledContent("Version", value: build.forkVersion ?? build.version ?? "Unknown") }
+                case .lid: lidSection
+                case .safety:
+                    powerSection
+                    recoverySection
+                case .advanced:
+                    Section("Optional Tools") {
+                        detailButton("App Pausing", note: "Choose apps to pause while the lid is closed.")
+                        detailButton("Protected Apps", note: "Manage apps excluded from automatic pausing.")
+                        detailButton("Docker", note: "Pause Docker only when no containers are running.")
+                        detailButton("Network Recovery", note: "Hotspot connection and permissions.")
+                        detailButton("Terminal Automation", note: "Configure opt-in tmux nudges and submission.")
+                        Button("Show Configuration in Finder") { NSWorkspace.shared.activateFileViewerSelecting([manager.paths.configFile]) }
+                    }
+                    Section { releaseCheck }
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
-        .formStyle(.grouped)
-        .frame(width: 520)
-        .frame(minHeight: 560, idealHeight: 720)
+        .frame(width: 620, height: 660)
+        .tint(.blue)
+        .sheet(isPresented: Binding(get: { detail != nil }, set: { if !$0 { detail = nil } })) {
+            VStack(spacing: 0) {
+                HStack {
+                    Text(detail ?? "Details").font(.headline)
+                    Spacer()
+                    Button("Done") { detail = nil }.keyboardShortcut(.cancelAction)
+                }.padding(24)
+                Form {
+                    switch detail {
+                    case "Quick Durations": presetRows
+                    case "App Pausing": pausingSection
+                    case "Protected Apps": agentSection
+                    case "Docker": dockerSection
+                    case "Network Recovery": networkSection
+                    case "Terminal Automation": terminalSection
+                    default: EmptyView()
+                    }
+                }.formStyle(.grouped)
+            }.frame(width: 580, height: 560)
+        }
         .onAppear {
             loadPassword()
             refreshWouldFreeze()
@@ -100,6 +158,29 @@ struct SettingsView: View {
 
     private var sessionSection: some View {
         Section("Session") {
+            Button("Quick Durations…") { detail = "Quick Durations" }
+            Picker("Default Duration", selection: bind(\.defaultPreset)) {
+                ForEach(manager.config.presets, id: \.self) { p in
+                    Text(chipLabel(for: p)).tag(p)
+                }
+                if !manager.config.presets.contains(manager.config.defaultPreset) {
+                    Text(chipLabel(for: manager.config.defaultPreset)).tag(manager.config.defaultPreset)
+                }
+            }
+            Picker("Start Typing In", selection: bind(\.defaultFocusField)) {
+                ForEach(DurationInput.Field.allCases, id: \.self) { field in
+                    Text(field.placeholder).tag(field)
+                }
+            }
+            .help("The pill that is focused when the pills open")
+            LabeledContent("Maximum Session") {
+                Text(chipLabel(for: manager.config.maxDuration)).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var presetRows: some View {
+        Section("Quick Durations") {
             ForEach(manager.config.presets, id: \.self) { p in
                 HStack {
                     Text(chipLabel(for: p))
@@ -123,24 +204,21 @@ struct SettingsView: View {
             if let presetError {
                 Text(presetError).font(.caption).foregroundStyle(.red)
             }
-            Picker("Default preset", selection: bind(\.defaultPreset)) {
-                ForEach(manager.config.presets, id: \.self) { p in
-                    Text(chipLabel(for: p)).tag(p)
-                }
-                if !manager.config.presets.contains(manager.config.defaultPreset) {
-                    Text(chipLabel(for: manager.config.defaultPreset)).tag(manager.config.defaultPreset)
-                }
-            }
-            Picker("Default field", selection: bind(\.defaultFocusField)) {
-                ForEach(DurationInput.Field.allCases, id: \.self) { field in
-                    Text(field.placeholder).tag(field)
-                }
-            }
-            .help("The pill that is focused when the pills open")
-            LabeledContent("Maximum session") {
-                Text(chipLabel(for: manager.config.maxDuration)).foregroundStyle(.secondary)
-            }
         }
+    }
+
+    private func detailButton(_ title: String, note: String) -> some View {
+        Button { detail = title } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).foregroundStyle(.primary)
+                    Text(note).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("Configure").foregroundStyle(.blue)
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+            }.padding(.vertical, 5)
+        }.buttonStyle(.plain)
     }
 
     private func addPreset() {
@@ -175,12 +253,32 @@ struct SettingsView: View {
                     Button("Dismiss") { manager.dismissLidCloseNotice() }
                 }
             }
-            Toggle("Turn off the display and keyboard backlight", isOn: bind(\.darkenDisplayOnLidClose))
+            Toggle("Turn Off Display and Keyboard Light", isOn: bind(\.darkenDisplayOnLidClose))
             ForEach(manager.darkenRefusals, id: \.self) { reason in
                 Text(reason)
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
+            Toggle("Lock the Screen", isOn: bind(\.lockOnLidClose))
+            Toggle("Also Lock When Docked", isOn: bind(\.lockWithExternalDisplay))
+                .disabled(!manager.config.lockOnLidClose)
+            Text("If locking cannot be confirmed, the session ends and normal sleep is restored. Docked sessions stay unlocked unless the second option is enabled.")
+                .font(.caption).foregroundStyle(.secondary)
+            Toggle("Mute Audio", isOn: bind(\.muteOnLidClose))
+            Text("Stay muted until the lid reopens, even after expiry.").font(.caption).foregroundStyle(.secondary)
+            Toggle("Use Low Power Mode", isOn: bind(\.lowPowerOnLidClose))
+                // A floor input: apply it now if the lid is already closed.
+                .onChange(of: manager.config.lowPowerOnLidClose) { manager.services?.reevaluateFloors() }
+        } header: {
+            Text("When You Close the Lid")
+        } footer: {
+            Text(Self.microphoneNote).font(.caption)
+
+        }
+    }
+
+    private var pausingSection: some View {
+        Section {
             bundleList(
                 title: "Freeze while the lid is closed",
                 items: manager.config.freezeList,
@@ -192,26 +290,16 @@ struct SettingsView: View {
             Text(wouldFreezeText)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Toggle("Lock screen when the lid closes", isOn: bind(\.lockOnLidClose))
-            Toggle("Also lock with an external display connected", isOn: bind(\.lockWithExternalDisplay))
-                .disabled(!manager.config.lockOnLidClose)
-            Text("If locking cannot be confirmed, the session ends and normal sleep is restored. Docked sessions stay unlocked unless the second option is enabled.")
-                .font(.caption).foregroundStyle(.secondary)
+        } footer: {
+            Text("Apps on the list above are stopped with SIGSTOP while the lid is closed and resumed when it opens. With \"Freeze every other app\" on (off by default), every other Dock app is stopped too, except agent apps, Apple apps, Docker Desktop and built-in protected apps (editors, terminals, browsers, AI apps, password managers, local databases, Tailscale, local model servers, and meeting, recording and dictation apps such as Zoom, Teams, Webex, Wispr Flow, Granola, Otter, OBS and Loom). Agent apps are never frozen. The display brightness and keyboard backlight are saved, set to zero and restored when the lid opens. If Insomnia is not running when you open the lid, press the brightness-up key.")
+        }
+    }
+    private var dockerSection: some View {
+        Section {
             Toggle("Pause Docker Desktop when no containers are running", isOn: bind(\.dockerRule))
             Text("Off by default. When on, Docker Desktop is paused only if a second check right before the pause still finds no running container; a container that starts in that last moment is paused with it.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Toggle("Mute audio on lid close", isOn: bind(\.muteOnLidClose))
-            Text(Self.microphoneNote)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Toggle("Low Power Mode while the lid is closed", isOn: bind(\.lowPowerOnLidClose))
-                // A floor input: apply it now if the lid is already closed.
-                .onChange(of: manager.config.lowPowerOnLidClose) { manager.services?.reevaluateFloors() }
-        } header: {
-            Text("Lid-close actions")
-        } footer: {
-            Text("Apps on the list above are stopped with SIGSTOP while the lid is closed and resumed when it opens. With \"Freeze every other app\" on (off by default), every other Dock app is stopped too, except agent apps, Apple apps, Docker Desktop and built-in protected apps (editors, terminals, browsers, AI apps, password managers, local databases, Tailscale, local model servers, and meeting, recording and dictation apps such as Zoom, Teams, Webex, Wispr Flow, Granola, Otter, OBS and Loom). Agent apps are never frozen. The display brightness and keyboard backlight are saved, set to zero and restored when the lid opens. If Insomnia is not running when you open the lid, press the brightness-up key.")
         }
     }
 
@@ -247,7 +335,7 @@ struct SettingsView: View {
     }
 
     private var powerSection: some View {
-        Section("Battery and thermal") {
+        Section("End Safely") {
             Stepper(value: lowPowerFloor, in: 0...100, step: Config.floorStep) {
                 LabeledContent("Low Power Mode below", value: "\(manager.config.lowPowerFloor)%")
             }
@@ -290,6 +378,16 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+        } header: {
+            Text("Network failover")
+        } footer: {
+            Text("The password is kept in the login keychain, readable without a prompt only by the build of Insomnia that saved it; after a reinstall, enter it again. Location permission lets macOS reveal Wi-Fi network names and find the configured hotspot.")
+        }
+    }
+
+    private var terminalSection: some View {
+        Section("Terminal Automation") {
             Stepper(value: nudgeSeconds, in: 10...900, step: 10) {
                 LabeledContent("Nudge tmux after", value: "\(Int(manager.config.nudgeThreshold)) s offline")
             }
@@ -319,10 +417,6 @@ struct SettingsView: View {
                 Button("Add", action: addTmuxTarget)
                     .disabled(newTmuxTarget.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-        } header: {
-            Text("Network failover")
-        } footer: {
-            Text("The password is kept in the login keychain, readable without a prompt only by the build of Insomnia that saved it; after a reinstall, enter it again. Location permission lets macOS reveal Wi-Fi network names and find the configured hotspot.")
         }
     }
 
@@ -490,41 +584,17 @@ struct SettingsView: View {
     }
 
     private var recoverySection: some View {
-        Section("Session and recovery") {
+        Section("Session and Recovery") {
             ForEach(RecoverySummary.lines(manager: manager), id: \.self) { Text($0) }
             Text(RecoveryHealth.shared.line)
                 .foregroundStyle(RecoveryHealth.shared.snapshot.warning ? Color.orange : Color.secondary)
-            Button("Refresh recovery status") { Task { await RecoveryHealth.shared.refresh() } }
+            Button("Refresh Recovery Status") { Task { await RecoveryHealth.shared.refresh() } }
                 .disabled(RecoveryHealth.shared.checking)
+            Button("Copy Diagnostics") { Task { await RecoverySummary.copy(manager: manager) } }
             Text("A successful helper run is a past result, not a guarantee of future recovery.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .task { await RecoveryHealth.shared.refresh() }
-    }
-
-    private var appSection: some View {
-        Section("App") {
-            Toggle("Launch at login", isOn: launchAtLogin)
-            loginItemNote
-            LabeledContent("Config") {
-                Text(manager.paths.configFile.path)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
-            LabeledContent("Version") {
-                Text(AppBuild.current.forkVersion ?? AppBuild.current.version ?? "Unknown")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
-            releaseCheck
-            if LidSimulationBuild.isCompiledIn {
-                Text(LidSimulationBuild.marker)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-        }
     }
 
     /// The update check: one request to GitHub's releases list per click,
@@ -532,9 +602,9 @@ struct SettingsView: View {
     /// installs nothing; the installer run again is the upgrade.
     @ViewBuilder
     private var releaseCheck: some View {
-        if AppBuild.current.isFork {
-            Button("Open this fork") { NSWorkspace.shared.open(AppBuild.forkPage) }
-            Text("Custom fork. Updates are reviewed builds installed with its installer. Upstream releases do not include these changes.")
+        if build.isFork {
+            Button("Project Website") { NSWorkspace.shared.open(AppBuild.forkPage) }
+            Text("Updates are reviewed builds installed with the installer.")
                 .font(.caption).foregroundStyle(.secondary)
         } else {
             HStack {

@@ -238,3 +238,37 @@ journal. This verifies the installed worker's independent battery path.
 Version 0.2.2 uses the unchanged worker, but its new deferred-audio behavior
 still needs an installed physical trial. Actual system sleep after closed-lid
 expiry, external-display lock policies and live diagnostics UI remain pending.
+
+## 0.3.0 approved UI (2026-11-05)
+
+Implements the approved Paper design: General, Lid Behavior, Safety and
+Advanced settings; focused drilldowns for optional tools; a shorter native
+context menu with routine details under Diagnostics and recovery warnings
+kept visible. Duration fields retain their units and width while typing.
+Pending starts say “Starting…”; refused starts retain the entered duration
+and provide an explanation popover.
+
+The half-open idle eye and wide-awake running eye share vector geometry with
+the approved artwork. Running veins taper to points. The Overlap app icon
+uses the idle eye without the exploration's missing corner, on overlapping
+cobalt shapes. All macOS icon sizes and the README SVG are generated from
+that source. The nearby-cursor pupil response is bounded to 1.5 design units
+and stops its timer when settled; it is disabled while editing, while a menu
+is open, and under Reduce Motion. Increased Contrast and Reduce Transparency
+use solid Settings chrome.
+
+This version also includes 0.2.2's deferred audio restoration. Bundle IDs,
+installed paths and recovery formats stay compatible with existing installs.
+Physical validation is still required on the installed 0.3.0 build, especially
+expiry while closed, audio/brightness restoration after reopening, and actual
+sleep. The earlier 0.2.1 battery-helper result is historical evidence only.
+
+Validation: the broad run exercised 1,047 XCTest cases (13 tmux skips) and
+14 Swift Testing cases. Its five assertions concerned the old icon, old
+mute-label placement and old version metadata. After correcting the rendering
+preview and updating those design contracts, the focused 72 XCTest cases
+plus eight deferred-audio cases passed. A final 34-case pass covered Settings
+layout, microphone copy, password handling, recovery presentation and startup,
+with no failures. All four native Settings tabs were rendered and visually
+inspected in light and dark appearances. The unchanged 248-case recovery
+script suite was not repeated for this UI change.

@@ -38,9 +38,10 @@ final class LidCloseCopyTests: XCTestCase {
     /// lid-close options.
     func testSettingsShowsTheMicrophoneNoteUnderTheMuteToggle() throws {
         let lid = try lidSection()
-        let toggle = try XCTUnwrap(lid.range(of: #"Toggle("Mute audio on lid close", isOn: bind(\.muteOnLidClose))"#))
+        let toggle = try XCTUnwrap(lid.range(of: #"Toggle("Mute Audio", isOn: bind(\.muteOnLidClose))"#))
         let next = lid[toggle.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-        XCTAssertTrue(next.hasPrefix("Text(Self.microphoneNote)"), String(next.prefix(80)))
+        XCTAssertTrue(next.contains("Text(Self.microphoneNote)"))
+        XCTAssertTrue(next.contains("Stay muted until the lid reopens, even after expiry."))
     }
 
     func testReadmeExplainsTheMicrophone() throws {

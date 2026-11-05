@@ -98,6 +98,7 @@ trap 'exit 143' TERM
   "$ROOT/Sources/Insomnia/UI/EyeLensGeometry.swift" \
   "$ROOT/Sources/Insomnia/UI/EyeMarkGeometry.swift" \
   "$ROOT/Sources/Insomnia/UI/BrandPalette.swift" \
+  "$ROOT/Sources/Insomnia/UI/InsomniacArtwork.swift" \
   "$ROOT/Sources/Insomnia/UI/AppIconArtwork.swift" \
   "$ROOT/scripts/generate-app-icon.swift" \
   -o "$WORK/generate-app-icon"

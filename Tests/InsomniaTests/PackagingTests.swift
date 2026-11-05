@@ -387,7 +387,7 @@ final class PackagingTests: XCTestCase {
             XCTAssertTrue(FileManager.default.fileExists(atPath: bundle.appendingPathComponent(rel).path), rel)
         }
         let info = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: bundle.appendingPathComponent("Contents/Info.plist")), format: nil) as? [String: Any])
-        XCTAssertEqual(info["InsomniaForkVersion"] as? String, "0.2.2")
+        XCTAssertEqual(info["InsomniaForkVersion"] as? String, "0.3.0")
         XCTAssertEqual(info["InsomniaSourceRevision"] as? String, "source-archive", "a source copy without Git must not invent a revision")
         let perms = try FileManager.default.attributesOfItem(atPath: Paths.backstopScript(inBundle: bundle).path)[.posixPermissions] as? Int
         XCTAssertEqual(perms.map { $0 & 0o111 }, 0o111, "backstop.sh is executable")
@@ -639,28 +639,16 @@ final class PackagingTests: XCTestCase {
         XCTAssertEqual(committed, AppIconArtwork.svg(), "docs/assets/eye-open.svg differs from the artwork; run scripts/generate-app-icon.sh")
         XCTAssertFalse(FileManager.default.fileExists(atPath: Self.repoRoot.appendingPathComponent("docs/assets/eye-moon.svg").path), "the old eye-and-moon SVG is gone")
 
-        // What the README embeds: the tile, then the lens, pupil and lashes on the 24-unit grid, named for what they are.
-        let grid = CGRect(x: 0, y: 0, width: EyeLensGeometry.designSize, height: EyeLensGeometry.designSize)
-        XCTAssertTrue(committed.contains("<title id=\"eo-title\">Insomnia</title>"))
-        XCTAssertTrue(committed.contains("<desc id=\"eo-desc\">The Insomnia mark: an open almond-shaped eye with a round pupil and five lashes above the upper lid"))
-        XCTAssertFalse(committed.lowercased().contains("crescent"))
-        XCTAssertTrue(committed.contains("<rect x=\"100\" y=\"100\" width=\"824\" height=\"824\" rx=\"184.3288\" fill=\"#303336\"/>"))
-        XCTAssertTrue(committed.contains("d=\"\(AppIconArtwork.pathData(EyeMarkGeometry.lens(in: grid)))\" fill=\"none\" stroke=\"#E6E3DD\" stroke-width=\"1.5\""))
-        XCTAssertTrue(committed.contains("d=\"\(AppIconArtwork.pathData(EyeMarkGeometry.pupil(in: grid)))\" fill=\"#E6E3DD\""))
-        XCTAssertTrue(committed.contains("d=\"\(AppIconArtwork.pathData(EyeMarkGeometry.lashes(in: grid, side: .above)))\" fill=\"none\" stroke=\"#E6E3DD\""))
-        XCTAssertFalse(committed.contains(AppIconArtwork.pathData(EyeMarkGeometry.lashes(in: grid, side: .below))), "no lower lashes: the eye is open")
-        // The grid is placed where the icon places it.
-        let mark = AppIconArtwork.mark
-        let scale = AppIconArtwork.number(mark.width / EyeLensGeometry.designSize)
-        XCTAssertTrue(committed.contains("transform=\"translate(\(AppIconArtwork.number(mark.minX)) \(AppIconArtwork.number(mark.minY))) scale(\(scale))\""))
-        // Path data is moves, lines, cubics and closes with no empty segments.
-        let pupil = AppIconArtwork.pathData(EyeMarkGeometry.pupil(in: grid))
-        XCTAssertTrue(pupil.hasPrefix("M"))
-        XCTAssertTrue(pupil.hasSuffix("Z"))
-        XCTAssertFalse(pupil.contains("L"), "an arc's lead-in line to its own start is dropped")
-        XCTAssertEqual(AppIconArtwork.number(184.32880), "184.3288")
-        XCTAssertEqual(AppIconArtwork.number(12), "12")
-        XCTAssertEqual(AppIconArtwork.number(-0.00001), "0")
+        let grid = CGRect(x: 0, y: 0, width: 24, height: 24)
+        XCTAssertTrue(committed.contains("<title id=\"eo-title\">Insomniac</title>"))
+        for color in ["#1645F5", "#53A5FF", "#0D28A6", "#FFFFFF"] {
+            XCTAssertTrue(committed.contains(color))
+        }
+        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.outline(running: false, in: grid))))
+        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.pupil(running: false, in: grid))))
+        XCTAssertTrue(committed.contains(AppIconArtwork.pathData(InsomniacArtwork.brow(in: grid))))
+        XCTAssertTrue(committed.contains("stroke-width=\"1\""))
+        XCTAssertTrue(committed.contains("stroke-linejoin=\"round\""))
     }
 
     // MARK: - Regeneration

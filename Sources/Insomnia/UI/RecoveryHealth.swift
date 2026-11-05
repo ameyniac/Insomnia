@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 /// A read-only launchd snapshot. A successful exit is evidence of a past
@@ -56,6 +56,15 @@ final class RecoveryHealth {
 
 @MainActor
 enum RecoverySummary {
+    static func copy(manager: SessionManager) async {
+        await RecoveryHealth.shared.refresh()
+        let result = try? await CancellableCommand().run("/usr/bin/pmset", ["-g"], timeout: 3)
+        let disabled = result.flatMap { $0.succeeded ? PmsetSleepGuard.readSleepDisabled($0.stdout) : nil }
+        let summary = diagnostics(manager: manager, health: .shared, sleepDisabled: disabled)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(summary, forType: .string)
+    }
+
     static func lines(manager: SessionManager) -> [String] {
         let end = manager.session.map { "Ends at \($0.endsAt.formatted(date: .omitted, time: .standard))" } ?? "No active session"
         let floor = manager.config.endFloor > 0 ? "Battery cutoff: below \(manager.config.endFloor)%" : "Battery cutoff: off"
@@ -69,7 +78,7 @@ enum RecoverySummary {
     /// Deliberately excludes device names, SSIDs, paths, process identifiers,
     /// raw logs and credentials. It is copied only on an explicit click.
     static func diagnostics(manager: SessionManager, health: RecoveryHealth, sleepDisabled: Bool?) -> String {
-        (["Insomnia diagnostic summary", AppBuild.current.label,
+        (["Insomniac diagnostic summary", AppBuild.current.label,
           "macOS \(ProcessInfo.processInfo.operatingSystemVersionString)",
           "Checked: \(Date().ISO8601Format())"] + lines(manager: manager) +
          [health.line, "SleepDisabled readback: \(sleepDisabled.map { $0 ? "1" : "0" } ?? "unavailable")",

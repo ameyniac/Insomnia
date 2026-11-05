@@ -2,10 +2,10 @@
 > See [fork changes and validation](docs/fork-validation.md). Installed-Mac trial results and remaining checks are recorded there.
 
 <p align="center">
-  <img src="docs/assets/eye-open.svg" alt="Insomnia: an open eye with a round pupil and five lashes above it" width="112">
+  <img src="docs/assets/eye-open.svg" alt="Insomniac: a half-open white eye over overlapping cobalt shapes" width="112">
 </p>
 
-<h1 align="center">Insomnia</h1>
+<h1 align="center">Insomniac</h1>
 
 <p align="center">
   <strong>Keep your Mac awake. Give the session an end time.</strong>
@@ -57,8 +57,8 @@ open "$HOME/Applications/Insomnia.app"
 ```
 
 The installer asks for your Mac administrator password in Terminal.
-Settings identifies this fork as version 0.2.2 with its source revision and
-links to this branch for reviewed updates. Its upstream release checker is
+Settings shows version 0.3.0; Diagnostics includes its source revision.
+Advanced settings links to this branch for reviewed updates. Its upstream release checker is
 disabled: an upstream release would replace the fork's changes. For upstream
 releases only, see the [upstream installation guide](docs/install.md).
 

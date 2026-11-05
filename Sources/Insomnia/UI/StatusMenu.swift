@@ -15,6 +15,7 @@ enum StatusMenu {
             case settings
             case quit
             case copyDiagnostics
+            case diagnostics([Item])
             /// Relaunch this browser with the occlusion flags. Carries the
             /// bundle id and name, so the item still names the same browser
             /// after a scan replaces the list.
@@ -31,7 +32,7 @@ enum StatusMenu {
     }
 
     static let settingsTitle = "Settings\u{2026}"
-    static let quitTitle = "Quit Insomnia"
+    static let quitTitle = "Quit Insomniac"
 
     /// Disabled status lines, a separator, then Settings… and Quit. Empty
     /// lines are dropped, and the separator only appears when something
@@ -61,6 +62,7 @@ enum StatusMenu {
         outputsWaiting: [SavedAudioOutput] = [],
         lidSimulationBuild: Bool = false,
         recoveryLines: [String] = [],
+        recoveryWarning: String? = nil,
         includeDiagnostics: Bool = false
     ) -> [Item] {
         var out: [Item] = recoveryLines.map { Item(title: $0, kind: .info) }
@@ -112,8 +114,21 @@ enum StatusMenu {
         if !out.isEmpty {
             out.append(Item(title: "", kind: .separator))
         }
-        if includeDiagnostics { out.append(Item(title: "Copy diagnostics", kind: .copyDiagnostics)) }
-        out.append(Item(title: settingsTitle, kind: .settings))
+        if includeDiagnostics {
+            if let recoveryWarning { out.append(Item(title: recoveryWarning, kind: .warning)) }
+            for line in recoveryLines where line.hasPrefix("Cleanup pending") || line.contains("waiting for lid to open") {
+                out.append(Item(title: line, kind: .warning))
+            }
+            let details = out.filter { $0.kind == .info }
+            out.removeAll { $0.kind == .info || $0.kind == .separator }
+            out.insert(Item(title: sessionActive ? (sleepHeld ? "Keeping Awake" : "Session Active") : "No Active Session", kind: .info), at: 0)
+            out.append(Item(title: "", kind: .separator))
+            out.append(Item(title: settingsTitle, kind: .settings))
+            out.append(Item(title: "Diagnostics", kind: .diagnostics(details + [Item(title: "", kind: .separator), Item(title: "Copy Diagnostics", kind: .copyDiagnostics)])))
+            out.append(Item(title: "", kind: .separator))
+        } else {
+            out.append(Item(title: settingsTitle, kind: .settings))
+        }
         out.append(Item(title: quitTitle, kind: .quit))
         return out
     }
@@ -153,6 +168,10 @@ enum StatusMenu {
                     attributes[.foregroundColor] = NSColor.systemOrange
                 }
                 entry.attributedTitle = NSAttributedString(string: item.title, attributes: attributes)
+                menu.addItem(entry)
+            case let .diagnostics(details):
+                let entry = NSMenuItem(title: item.title, action: nil, keyEquivalent: "")
+                entry.submenu = Self.menu(details, target: target, settings: settings, quit: quit, relaunchBrowser: relaunchBrowser, stopWaitingForOutput: stopWaitingForOutput, copyDiagnostics: copyDiagnostics)
                 menu.addItem(entry)
             case .copyDiagnostics:
                 if let copyDiagnostics {

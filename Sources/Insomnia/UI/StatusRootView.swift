@@ -31,6 +31,7 @@ struct StatusRootView: View {
     private static let slotSpacing: CGFloat = 7
     /// Each slot's laid-out width, for the distance a collapsing pill
     /// travels; a fixed slot's width never changes once measured.
+    @State private var showingStartError = false
     @State private var pillWidths: [DurationInput.Field: CGFloat] = [:]
 
     private var reduceMotion: Bool { reduceMotionEnv || Motion.reduceMotion }
@@ -40,13 +41,10 @@ struct StatusRootView: View {
     /// session ends, and that window must not offer an end ring and a
     /// countdown for a session that is already gone.
     private var showsRunningControls: Bool { model.phase.showsRunningControls && isRunning }
-    /// A pending start shows its projected countdown; a confirmed session its
-    /// live one.
+    /// Pending starts show a status label; confirmed sessions show time.
     private var showsCountdown: Bool { model.phase == .starting || showsRunningControls }
-    /// The eye opens the moment Enter starts a session, not when the manager
-    /// confirms it: the blink is the first thing that answers the keystroke.
-    /// A refused start closes it again with the pills coming back.
-    private var eyeOpen: Bool { isRunning || model.phase == .starting }
+    /// Only a confirmed session opens the eye. Pending starts say Starting….
+    private var eyeOpen: Bool { isRunning }
 
     private var countdownText: String {
         Self.countdownText(pending: model.pendingCountdown, live: manager.countdownText, phase: model.phase)
@@ -57,6 +55,7 @@ struct StatusRootView: View {
     /// new end at Enter, not when the manager confirms it. Static so the
     /// precedence can be pinned without a manager.
     static func countdownText(pending: String?, live: String, phase: MenuBarModel.Phase) -> String {
+        if phase == .starting { return MenuBarModel.startingText }
         if let pending { return pending }
         if !live.isEmpty { return live }
         // A start with no projection; should not happen but keeps the view total.
@@ -106,16 +105,11 @@ struct StatusRootView: View {
     /// A closed eye while idle; it opens while sleep is held, so the app
     /// visibly does something even when Low Power Mode is not showing.
     private var icon: some View {
-        EyeMarkView(isRunning: eyeOpen, reduceMotion: reduceMotion)
+        EyeMarkView(isRunning: eyeOpen, reduceMotion: reduceMotion, trackingEnabled: !model.menuOpen && !model.phase.isEntering && model.phase != .starting)
             .frame(width: 20, height: 20)
             .contentShape(Rectangle())
-            .phaseAnimator([CGFloat(1), reduceMotion ? 1 : 0.86, 1], trigger: model.iconBounce) { content, scale in
-                content.scaleEffect(scale)
-            } animation: { _ in
-                Motion.snappy(reduceMotion: reduceMotion)
-            }
             .onTapGesture(perform: onTapIcon)
-            .accessibilityLabel("Insomnia")
+            .accessibilityLabel("Insomniac")
     }
 
     /// All three slots are in the layout whenever they are present;
@@ -201,13 +195,22 @@ struct StatusRootView: View {
     /// The manager refused the start: say so next to the pills the value is
     /// still in. The full reason lives in the right-click menu.
     private func startError(_ text: String) -> some View {
-        Label(text, systemImage: "exclamationmark.triangle.fill")
-            .font(.system(size: 11, weight: .medium, design: .rounded))
-            .labelStyle(.titleAndIcon)
-            .foregroundStyle(Color(brand: BrandPalette.violet))
-            .lineLimit(1)
-            .fixedSize()
-            .transition(Motion.errorTransition(reduceMotion: reduceMotion))
-            .accessibilityLabel("Start failed")
+        Button { showingStartError = true } label: {
+            Label("Couldn’t Start", systemImage: "exclamationmark.triangle")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.orange)
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .popover(isPresented: $showingStartError) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Couldn’t Start").font(.headline)
+                Text(manager.lastError ?? "The session could not start. Your duration is still entered.")
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Your duration is saved. Close this message and press Return to retry. Recovery details are in the right-click menu.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("Done") { showingStartError = false }
+            }.padding(20).frame(width: 320)
+        }
     }
 }

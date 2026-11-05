@@ -194,7 +194,7 @@ final class UIStatusTests: XCTestCase {
     @MainActor
     func testAPendingProjectionShowsOverTheLiveCountdown() {
         XCTAssertEqual(StatusRootView.countdownText(pending: "2:00:00", live: "1:00:00", phase: .running), "2:00:00")
-        XCTAssertEqual(StatusRootView.countdownText(pending: "2:00:00", live: "", phase: .starting), "2:00:00")
+        XCTAssertEqual(StatusRootView.countdownText(pending: "2:00:00", live: "", phase: .starting), MenuBarModel.startingText)
         XCTAssertEqual(StatusRootView.countdownText(pending: nil, live: "1:00:00", phase: .running), "1:00:00")
         XCTAssertEqual(StatusRootView.countdownText(pending: nil, live: "", phase: .starting), MenuBarModel.startingText)
         XCTAssertEqual(StatusRootView.countdownText(pending: nil, live: "", phase: .idle), "")
@@ -842,7 +842,7 @@ final class UIStatusTests: XCTestCase {
         XCTAssertEqual(controller.model.phase, .starting, "the countdown is the projection until the manager answers")
         XCTAssertEqual(
             StatusRootView.countdownText(pending: controller.model.pendingCountdown, live: lab.manager.countdownText, phase: controller.model.phase),
-            controller.model.pendingCountdown
+            MenuBarModel.startingText
         )
         try? await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(controller.widthTarget, lab.widthWithoutSlots(phase: .starting), "the width snaps once, after the slots left")

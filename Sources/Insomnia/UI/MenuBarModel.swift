@@ -60,6 +60,7 @@ final class MenuBarModel {
     /// start. Short on purpose: the full reason is in the right-click menu.
     static let startFailedText = "Couldn\u{2019}t start"
 
+    var menuOpen = false
     var phase: Phase = .idle
     /// Concise start failure shown beside the pills; cleared on the next
     /// commit, open or collapse.
