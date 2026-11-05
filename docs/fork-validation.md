@@ -451,3 +451,23 @@ external monitor does not support the app's brightness control, so dimming
 was safely skipped. Keyboard backlight remains managed by macOS on this
 hardware. Notifications are denied; enabled notification delivery has not
 been exercised.
+
+## 1.0.0 acceptance and remaining limits (2026-11-05)
+
+Final reopening restored saved headphone volume and mute state at 15:54:34
+PST. The journal is clean, with no active session or app-owned power changes.
+The planned installed hardware checks are complete across the builds above.
+Notifications remain denied: disabled-permission behavior was observed, but
+enabled alert delivery is not claimed. Keyboard backlight was managed by
+macOS and the external monitor did not support brightness control.
+
+1.0.0 promotes the tested 0.3.4 application code without behavioral changes.
+Both bundle and fork version identify 1.0.0. The README now leads with the
+approved eye artwork, concise usage and lid-behavior tables, source install
+commands and explicit recovery limits; upstream credit remains in the footer.
+Final installation verification remains pending.
+
+Final metadata/documentation verification: all 34 packaging and release
+workflow tests passed with zero failures. README local links resolve and
+git diff --check passed. Prior behavioral test results are retained above;
+the unchanged application code was not rerun solely for the version bump.

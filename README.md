@@ -1,53 +1,42 @@
-> **Ameya’s reliability fork.** Based on upstream `b8e7e20` (2026-10-27).
-> See [fork changes and validation](docs/fork-validation.md). Installed-Mac trial results and remaining checks are recorded there.
-
 <p align="center">
-  <img src="docs/assets/eye-open.svg" alt="Insomniac: a half-open white eye over overlapping cobalt shapes" width="112">
+  <img src="docs/assets/eye-open.svg" alt="Insomniac's wide-awake eye on overlapping cobalt shapes" width="128" height="128">
 </p>
 
 <h1 align="center">Insomniac</h1>
 
+<p align="center"><strong>A little eye. A little more time.</strong></p>
 <p align="center">
-  <strong>Keep your Mac awake. Give the session an end time.</strong>
+  Keep your Mac awake for as long as you need.<br>
+  Set a timer, close the lid, and let your session finish.
 </p>
 
 <p align="center">
-  A macOS menu bar app for timed awake sessions. Insomnia is an eye icon that
-  lives in your MacBook menu bar. It has no Dock icon and no main window. Set
-  how long your Mac stays awake, choose what happens when the lid closes, and
-  see when something could not be undone.
+  <img alt="macOS 26 or later" src="https://img.shields.io/badge/macOS-26%2B-1645F5?style=flat-square">
+  <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple_Silicon-arm64-0D28A6?style=flat-square">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/License-MIT-1645F5?style=flat-square"></a>
 </p>
 
 <p align="center">
-  <a href="https://getinsomnia.app"><strong>Website</strong></a> ·
-  <a href="#install"><strong>Install</strong></a> ·
-  <a href="#using-it"><strong>Using it</strong></a> ·
-  <a href="#what-happens-when-the-lid-closes"><strong>Lid close</strong></a> ·
-  <a href="#how-recovery-works"><strong>Recovery</strong></a> ·
-  <a href="SECURITY.md"><strong>Security</strong></a>
+  <a href="#install">Install</a> &nbsp;·&nbsp;
+  <a href="#using-it">How it works</a> &nbsp;·&nbsp;
+  <a href="#when-the-lid-closes">Lid behavior</a> &nbsp;·&nbsp;
+  <a href="docs/fork-validation.md">Tested behavior</a>
 </p>
 
-<p align="center">
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/License-MIT-536D78?style=flat-square"></a>
-  <img alt="macOS 26 or later" src="https://img.shields.io/badge/macOS-26%2B-303336?style=flat-square">
-  <img alt="Experimental source build" src="https://img.shields.io/badge/Status-experimental-536D78?style=flat-square">
-</p>
+---
 
-> **Use a stable, well-ventilated surface, not a closed bag.** Insomnia is
-> experimental. Recovery can fail, and a running timer is not a safety
-> guarantee.
-> [Validation status](docs/release-validation.md) · [Apple's ventilation guidance](https://support.apple.com/en-us/102336)
+Insomniac lives in your menu bar, with no Dock icon or main window. Its eye
+rests when idle, blinks through startup, and opens when your session is ready.
+Move your cursor nearby and the pupil follows along.
 
+| Your session | Your preferences | A way back |
+| --- | --- | --- |
+| Set days, hours and minutes. Add time or end early. | Choose locking, audio and power behavior in four Settings tabs. | Changes are recorded before they happen, with an independent recovery helper if the app exits. |
 
 ## Install
 
-Requires macOS 26 or later on an Apple Silicon Mac.
-
-This fork is built from source. Its local changes and test evidence are in
-[the fork validation record](docs/fork-validation.md). The upstream release
-installer does not include these changes.
-
-Needs Xcode with Swift 6.2 or later:
+Requires **macOS 26 or later**, an **Apple Silicon** Mac, and a Swift 6.2 or
+later toolchain from Xcode or the Command Line Tools.
 
 ```bash
 git clone --branch main https://github.com/ameyniac/Insomnia.git
@@ -56,25 +45,24 @@ cd Insomnia
 open "$HOME/Applications/Insomnia.app"
 ```
 
-The installer asks for your Mac administrator password in Terminal.
-Settings shows version 0.3.1; Diagnostics includes its source revision.
-Advanced settings links to this branch for reviewed updates. Its upstream release checker is
-disabled: an upstream release would replace the fork's changes. For upstream
-releases only, see the [upstream installation guide](docs/install.md).
+Enter your Mac administrator password when Terminal asks. Password typing
+is hidden. The app appears as an eye in the menu bar.
+
+This repository builds Insomniac from source. The upstream release installer
+does not include these changes. Upstream update checks are disabled because
+an upstream release would replace the fork's changes. The retained
+[upstream installation guide](docs/install.md) describes upstream packages;
+use the commands above for this version.
 
 <details>
-<summary><strong>What the installer changes on your Mac</strong></summary>
+<summary><strong>What gets installed</strong></summary>
 
-The installer needs your password, because the sudoers rule is a system
-file. It installs:
-
-- The app, at `~/Applications/Insomnia.app`.
-- A **recovery agent**, a `launchd` job that runs every minute. If the app is
-  gone when a session should have ended, the agent tries to undo the
-  session's changes.
-- A **sudoers rule** at `/etc/sudoers.d/insomnia`. A sudoers rule decides who
-  can run what with `sudo`. This one lets your user account, not just
-  Insomnia, run these four commands without a password:
+- The app at `~/Applications/Insomnia.app`. Its displayed name is Insomniac;
+  the existing bundle and support paths are retained for upgrades.
+- A `launchd` recovery helper that checks once a minute and restores journaled
+  changes after an expired or unsafe session, even if the GUI has crashed.
+- A sudoers rule at `/etc/sudoers.d/insomnia` allowing your account to run
+  these four power commands without another password prompt:
 
 ```text
 /usr/bin/pmset -a disablesleep 1
@@ -83,163 +71,104 @@ file. It installs:
 /usr/bin/pmset -b lowpowermode 0
 ```
 
-Any program running as you can use that rule too, so review it before you
-install. [docs/install.md](docs/install.md#what-gets-installed) lists every
-file and explains how upgrades replace them.
+The rule applies to programs running as your user, not only this app.
+The locally built app is ad-hoc signed, not Apple-notarized.
+[Installation details](docs/install.md#what-gets-installed)
 
 </details>
 
 ## Using it
 
-1. **Start.** Click the eye in the menu bar, enter days, hours and minutes,
-   and press Enter.
-2. **Add time.** Click the eye or the countdown during a session.
-3. **End early.** Click the end control next to the countdown. Dragging away cancels.
-4. **Settings and status.** Right-click the eye. The menu includes the deadline,
-   battery and thermal cutoffs, recovery-helper status, pending cleanup, and
-   Copy diagnostics. The diagnostics omit network/device names and raw logs. Quit asks Insomnia to undo
-   the session first, and it refuses while a change is still waiting to be
-   undone. Saved audio for an output that isn't connected doesn't hold it up.
-   Insomnia restores that output when it is connected and the lid is known
-   open, while the app runs or at the next launch.
+1. **Click the eye.** Enter a duration and press Enter. Five startup blinks
+   accompany the sleep-guard check; those seconds count toward your session.
+2. **Keep working.** The open eye and countdown show an active session.
+   Click the eye or countdown to add time.
+3. **Finish whenever you like.** Click × to end early, or let the timer expire.
+   Escape cancels duration entry before you submit it.
+4. **Make it yours.** Right-click the eye for Settings, recovery status and
+   Copy Diagnostics. The copied summary omits device names, network names
+   and raw logs.
 
-You don't have to close the lid, and opening it doesn't end the session.
+Opening the lid does not end your session. When docked, the countdown keeps
+updating on your external monitor, including when you start with the lid closed.
+Reduce Motion replaces startup blinks with a numeric countdown.
 
-On battery power, Insomnia turns on Low Power Mode below 40% and ends the
-session below 10%. Those are the defaults. You can change both in Settings,
-and an end floor of 0 turns the battery end off. The heat rules turn on Low Power
-Mode when the Mac gets seriously hot and end the session at critical heat.
-They are on by default, and Settings can turn them off. The GUI applies these
-rules while running. The independent recovery worker also checks the battery end
-floor and critical heat once a minute, even after a GUI crash.
+## When the lid closes
 
-Before your first session, check Settings. Then run a short session you can
-watch, and read `~/Library/Logs/Insomnia/insomnia.log` afterward.
+| Setting | During the session | When you reopen |
+| --- | --- | --- |
+| **Lock the Screen** | Locks by default. An external display skips locking unless **Also Lock When Docked** is enabled. | Unlock normally. |
+| **Mute Audio** | Saves and mutes the output. Audio stays muted if the session expires while closed. | Restores saved volume and mute state. Music may remain paused. |
+| **Turn Off Display and Keyboard Light** | Saves and lowers brightness where supported. Unsupported controls are left alone. | Restores saved levels; macOS may manage keyboard lighting itself. |
+| **Use Low Power Mode** | Reduces power use while closed. | Clears the app's change unless a battery or heat rule still needs it. |
 
-## What happens when the lid closes
+If locking cannot be confirmed, the session ends and normal sleep is restored.
+At expiry, sleep and power settings are restored first. On an undocked Mac,
+the app requests system sleep when the current lid policy permits it. A Mac
+with a powered external display can remain awake under normal macOS docked
+behavior. Saved audio and brightness wait until the lid is known open.
 
+The built-in microphone disconnects in hardware when the lid closes on Apple
+Silicon and T2 laptops. Use an external microphone or headphones with a mic
+for closed-lid recording. [More about lid behavior](docs/lid-close.md)
 
-During a session, closing the lid does each of these, and opening it tries
-to undo them. The timer keeps counting down while the lid is closed.
+## Recovery, without guesswork
 
-- **The screen locks.** Locking is on by default. An active external display
-  skips locking unless "Also lock with an external display connected" is on.
-  If locking cannot be confirmed, Insomnia ends the session and attempts to
-  restore normal sleep. The lock uses a private macOS entry point and checks
-  the session's locked state; compatibility must be checked after OS updates.
-- **Display and keyboard light go off.** Insomnia saves their brightness
-  first. With sleep turned off, macOS no longer does this by itself. If the
-  timer ends while the lid is closed, it restores sleep settings immediately
-  and retains brightness until the lid is known open. While the app runs,
-  deferred brightness is checked every five seconds and restored after wake;
-  quitting preserves it for the next launch.
-- **Apps on the freeze list are frozen.** Freezing sends an app's processes
-  `SIGSTOP`, which pauses them until `SIGCONT` on lid open. This fork starts
-  with an empty freeze list. "Freeze every other app" is off by
-  default. Even when on, it skips meeting, recording and dictation apps: Zoom,
-  Teams, Webex, FaceTime, Wispr Flow, Granola, Otter, OBS and Loom.
-- **Audio is muted until reopening.** Lid open restores each output Insomnia
-  muted, even if you switched to another one. If the timer ends with the lid
-  closed or unreadable, sleep settings are restored but audio stays muted.
-  The app checks for reopening every five seconds; quitting keeps the saved
-  audio settings for the next launch. Reconnecting headphones while closed
-  does not unmute them. A manual unmute is respected.
-- **Low Power Mode turns on.** It turns off when the lid opens, unless a
-  battery or heat rule still needs it.
-- **Docker Desktop is frozen when no container runs.** This one is off by
-  default.
+Each reversible change is written to a journal before it is applied. The app
+and independent helper use that record to restore settings. Incomplete
+cleanup stays recorded and appears in the status menu for retry.
 
-On Mac laptops with Apple silicon or a T2 chip, closing the lid disconnects
-the built-in microphone in hardware. Recording a meeting with the lid closed
-needs AirPods or an external mic.
+By default, battery power below **40%** enables Low Power Mode and below
+**10%** ends the session. Critical heat also ends it. The independent helper
+checks the battery cutoff and critical heat once a minute, including after a
+GUI crash. These thresholds are configurable in Settings.
 
-[docs/lid-close.md](docs/lid-close.md) has the details: how Docker is checked,
-how brightness is restored, the one-time settings change when you upgrade,
-and how to test lid actions without closing the lid.
+The helper cannot restore audio or brightness by itself. Keep the app running,
+or reopen it, to finish those restores once the lid is open. Notifications
+are optional; recovery does not depend on notification permission.
 
-## How recovery works
+> Keep an awake Mac on a stable, ventilated surface. Recovery is a fallback,
+> not a guarantee that it is safe to run a closed laptop in a bag.
 
+**Verified on the test Mac:** undocked locking, real sleep after expiry,
+audio and display restoration, battery cutoff after a GUI crash, docked
+locking options, and starting with the lid already closed. Hardware and OS
+behavior can vary; screen locking uses a private macOS entry point with
+availability and confirmation checks.
 
-Insomnia writes each change to a **recovery journal**, a file on disk, before
-it makes the change. Ending the session tries to undo what the journal lists.
-If the app crashes, the recovery agent tries the same at the deadline or
-when its independent battery/heat check ends the session sooner.
-
-Some things need you:
-
-- The recovery agent can't restore audio. Open Insomnia again for that.
-- The recovery agent checks critical heat and the battery end floor once a minute. A failed safety probe ends the session conservatively.
-- Insomnia only unfreezes a process it can prove it froze. A frozen process
-  it can't prove stays frozen until you check it.
-
-If the menu shows a recovery warning, deal with it before you leave the Mac
-alone. [docs/recovery.md](docs/recovery.md) explains each case.
-
-## Optional extras
+[Validation evidence](docs/fork-validation.md) ·
+[Recovery guide](docs/recovery.md) · [Security](SECURITY.md)
 
 <details>
-<summary><strong>iPhone hotspot handoff and tmux</strong></summary>
+<summary><strong>Optional tools and privacy</strong></summary>
 
-If the Wi-Fi drops during a session, Insomnia can join your iPhone's hotspot.
-Set System Settings > Wi-Fi > Ask to join hotspots to Automatically, then enter
-the hotspot's name and password in Insomnia's Settings. The password stays in
-your login Keychain. Insomnia asks for Location Services access, because
-macOS requires it to read Wi-Fi network names. It never reads your location.
-After you reinstall Insomnia, enter the password again.
+Advanced settings include app pausing, Docker, hotspot recovery and opt-in
+tmux nudges. The app freeze list starts empty. Broad app freezing and Docker
+freezing are off by default; protected apps are excluded.
 
-After 90 seconds without a network, Insomnia can also type `continue` into a
-tmux pane running a coding agent. It only types into panes you list in
-Settings and mark yourself:
+Hotspot passwords are stored in your login Keychain. macOS requires Location
+Services permission to read Wi-Fi network names. tmux nudges only target
+explicitly marked panes; submitting with Enter is a separate opt-in.
 
-```bash
-tmux set-option -p -t <session:window.pane> @insomnia-nudge on
-```
+Settings live in `~/Library/Application Support/Insomnia/`; logs live in
+`~/Library/Logs/Insomnia/`. Owner-only permissions are applied, but existing
+symlinks and ACLs are preserved. Raw logs can contain network names and
+process details. Review them before sharing, or use Copy Diagnostics.
 
-It doesn't press Enter unless you turn that on. Mark a pane you don't type in.
-[docs/extras.md](docs/extras.md) has the details.
-
-</details>
-
-<details>
-<summary><strong>Chrome, Chromium, Arc and Comet throttling</strong></summary>
-
-These browsers slow down windows that macOS reports as hidden, which includes
-every window while the lid is closed. If a running browser lacks
-`--disable-backgrounding-occluded-windows` or
-`--disable-renderer-backgrounding`, the right-click menu offers "Relaunch
-[browser] unthrottled". It asks first, because relaunching quits the browser,
-and tabs come back only if the browser reopens them on startup. Some web apps
-may still stop with the lid closed.
-[docs/extras.md](docs/extras.md#chrome-chromium-arc-and-comet-throttling) has the
-details.
-
-</details>
-
-<details>
-<summary><strong>Configuration and privacy</strong></summary>
-
-Settings live in `~/Library/Application Support/Insomnia/config.json` and logs
-in `~/Library/Logs/Insomnia/`. Insomnia sets both folders and their files to
-owner-only permissions. It leaves symlinks and access control lists (ACLs,
-extra per-account permission entries) as they are, so another account can
-still have access through one. Logs can contain Wi-Fi names, process details
-and tmux targets, so check them before you share one.
-[docs/extras.md](docs/extras.md#configuration-and-privacy) has the details.
+[Optional tools](docs/extras.md) · [Configuration and privacy](docs/extras.md#configuration-and-privacy)
 
 </details>
 
 ## Uninstall
 
-From your checkout:
+From your source checkout:
 
 ```bash
-./scripts/uninstall.sh          # removes the app, the agent and the sudoers rule
-./scripts/uninstall.sh --purge  # also removes settings and logs
+./scripts/uninstall.sh          # remove the app, helper and sudoers rule
+./scripts/uninstall.sh --purge  # also remove settings and logs
 ```
 
-From an unpacked release zip, run `./uninstall.sh` in its folder instead. The
-uninstaller undoes any open session first and stops if it can't.
-[docs/install.md](docs/install.md#uninstall) has the details.
+The uninstaller restores an open session first and stops if it cannot.
 
 ## Development
 
@@ -248,20 +177,12 @@ swift build
 swift test
 ```
 
-The tests use fakes and temporary folders, so they never change your power
-settings. See [Contributing](CONTRIBUTING.md), [Security reporting](SECURITY.md),
-[Release validation](docs/release-validation.md) and [Design notes](docs/spec.md).
+Tests use fakes and temporary folders rather than changing your power settings.
+[Contributing](CONTRIBUTING.md) · [Design notes](docs/spec.md) ·
+[Release process](docs/releasing.md)
 
-## Star history
+---
 
-<a href="https://www.star-history.com/?repos=krishhgg%2FInsomnia&amp;type=date&amp;legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=krishhgg/insomnia&amp;type=date&amp;theme=dark&amp;legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=krishhgg/insomnia&amp;type=date&amp;legend=top-left" />
-    <img alt="Star history for krishhgg/Insomnia" src="https://api.star-history.com/svg?repos=krishhgg/insomnia&amp;type=date&amp;legend=top-left" />
-  </picture>
-</a>
-
-## License
-
-[MIT](LICENSE)
+Built on [Insomnia by Krish Garg](https://github.com/krishhgg/Insomnia).
+This fork adds its own visual identity, settings design and recovery behavior.
+[MIT licensed](LICENSE).
