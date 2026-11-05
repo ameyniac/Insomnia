@@ -375,6 +375,7 @@ final class SessionManager {
     private let appNap: any AppNapPreferencing
     private let notifier: any Notifying
     private let requestClosedLidSleep: @Sendable () throws -> Bool
+    private let hasExternalDisplay: () -> Bool?
     private let clamshell: @Sendable () -> Bool?
     private let clock: @Sendable () -> Date
     /// What the process table says a pid is now. Read only, to tell whether
@@ -560,6 +561,7 @@ final class SessionManager {
         appNap: any AppNapPreferencing = NoopAppNapPreferences(),
         notifier: any Notifying = RecordingNotifier(),
         requestClosedLidSleep: @escaping @Sendable () throws -> Bool = { false },
+        hasExternalDisplay: @escaping () -> Bool? = { false },
         clamshell: @escaping @Sendable () -> Bool? = { LidObserver.readClamshellState() },
         clock: @escaping @Sendable () -> Date = { Date() },
         processLookup: @escaping @Sendable (Int32) -> ProcessLookup = { SignalProcessControl.processTableState(pid: $0) },
@@ -583,6 +585,7 @@ final class SessionManager {
         self.appNap = appNap
         self.notifier = notifier
         self.clamshell = clamshell
+        self.hasExternalDisplay = hasExternalDisplay
         self.clock = clock
         self.processLookup = processLookup
         self.recoveryLock = RecoveryLock(url: paths.recoveryLock)
@@ -664,7 +667,8 @@ final class SessionManager {
             keyboard: keyboard,
             appNap: CFAppNapPreferences(),
             notifier: notifier,
-            requestClosedLidSleep: { try ClosedLidSleep.afterCleanup(paths: paths) }
+            requestClosedLidSleep: { try ClosedLidSleep.afterCleanup(paths: paths) },
+            hasExternalDisplay: { try? ScreenLocker().hasExternalDisplay() }
         )
         let services = AppServices(
             paths: paths,
@@ -1280,7 +1284,7 @@ final class SessionManager {
 
         session = new
         lastError = nil
-        countdownPaused = clamshell() == true
+        countdownPaused = clamshell() == true && hasExternalDisplay() == false
         foreignSleepWarning = nil
         Log.info("session started until \(iso(new.endsAt)) (\(Int(duration))s requested)")
         await armDeadline(new.endsAt)
@@ -2752,7 +2756,7 @@ final class SessionManager {
             } else if state.hasLidActions {
                 Log.info("reconcile: lid \(lidClosed == nil ? "unknown" : "closed"), keeping lid-close actions")
             }
-            countdownPaused = lidClosed == true
+            countdownPaused = lidClosed == true && hasExternalDisplay() == false
             await armDeadline(s.endsAt)
             applyAppNapInJournal()
             services?.start(for: self)
@@ -2976,9 +2980,13 @@ final class SessionManager {
         }
     }
 
-    /// Stop the countdown redraw. The lid observer calls this on lid close,
-    /// which is what keeps a 1 Hz timer from costing battery in the bag.
+    /// Stop hidden redraws in the bag, but keep a docked countdown live.
+    /// Unknown display state favors a live countdown over a frozen visible one.
     func pauseCountdown() {
+        guard hasExternalDisplay() == false else {
+            resumeCountdown()
+            return
+        }
         countdownPaused = true
         countdownTimer?.invalidate()
         countdownTimer = nil
@@ -3038,7 +3046,17 @@ final class SessionManager {
 
         recoveryPollTimer?.invalidate()
         let poll = Timer(fire: Date().addingTimeInterval(15), interval: 15, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.checkExternalEnd() }
+            Task { @MainActor in
+                guard let self else { return }
+                await self.checkExternalEnd()
+                guard self.session != nil else { return }
+                // Catch monitor hot-plug while the lid remains closed without
+                // adding another background timer.
+                let shouldPause = self.clamshell() == true && self.hasExternalDisplay() == false
+                if shouldPause != self.countdownPaused {
+                    if shouldPause { self.pauseCountdown() } else { self.resumeCountdown() }
+                }
+            }
         }
         poll.tolerance = 2
         RunLoop.main.add(poll, forMode: .common)
@@ -3078,7 +3096,7 @@ final class SessionManager {
 
     /// 1 Hz redraw aligned to whole wall-clock seconds so the digits change
     /// in step with the menu bar clock. `pauseCountdown()` stops it entirely
-    /// while the lid is closed.
+    /// while the lid is closed without an external display.
     private func armCountdownTimer() {
         countdownTimer?.invalidate()
         countdownTimer = nil

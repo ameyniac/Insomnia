@@ -410,3 +410,23 @@ The output exposed the old fork name in bundle metadata. InsomniaForkName
 now reads Insomniac, retaining version and source-revision diagnostics and
 fork update routing. This metadata correction will ship in the next build;
 the installed 0.3.3 still carries its original label.
+
+## 0.3.4 docked countdown correction (2026-11-05)
+
+The external-monitor trial confirmed docked locking was skipped, but the
+visible countdown stopped at 4:46. Logs showed the session still active with
+its original 15:26:31 PST deadline. The cause was an unconditional pause of
+the one-second redraw on lid close, originally intended to save battery
+when the menu bar cannot be seen.
+
+Countdown redraws now remain enabled when an external display is active or
+display detection is unavailable. This applies to lid close, closed-lid
+startup and reconciliation. The existing recovery poll also checks display
+changes, so connecting or disconnecting a monitor while closed updates the
+redraw policy within its normal approximately 15-second interval. Deadline
+and independent-helper timers are unchanged. A live-timer regression test
+covers a session started with the lid closed and an external display.
+
+Validation: 176 focused UI/status, lid actions, lid-aware reconciliation and
+packaging tests passed with zero failures. Installed monitor behavior still
+requires the 0.3.4 hardware retest.

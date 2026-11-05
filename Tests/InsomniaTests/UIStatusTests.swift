@@ -237,6 +237,21 @@ final class UIStatusTests: XCTestCase {
     }
 
     @MainActor
+    func testClosedLidCountdownKeepsTickingOnExternalDisplay() async throws {
+        let h = Harness()
+        defer { h.home.destroy() }
+        h.clamshell.closed = true
+        let m = h.makeManager(hasExternalDisplay: { true }, clock: { Date() })
+        await m.start(duration: 300)
+        m.pauseCountdown()
+        let before = m.countdownText
+        try await Task.sleep(for: .milliseconds(2200))
+        XCTAssertNotEqual(m.countdownText, before)
+        XCTAssertTrue(m.isActive)
+        await m.end(reason: .user)
+    }
+
+    @MainActor
     func testCountdownTextUsesMinutesShapeForShortSession() async {
         let h = Harness()
         defer { h.home.destroy() }

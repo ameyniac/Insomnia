@@ -39,7 +39,7 @@
 	<key>InsomniaForkName</key>
 	<string>Insomniac</string>
 	<key>InsomniaForkVersion</key>
-	<string>0.3.3</string>
+	<string>0.3.4</string>
 	<key>InsomniaClosedLidSleepVersion</key>
 	<integer>1</integer>
 	<key>InsomniaSafetyCheckVersion</key>
