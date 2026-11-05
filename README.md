@@ -50,14 +50,14 @@ installer does not include these changes.
 Needs Xcode with Swift 6.2 or later:
 
 ```bash
-git clone --branch ameya/reliability https://github.com/ameyniac/Insomnia.git
+git clone --branch main https://github.com/ameyniac/Insomnia.git
 cd Insomnia
 ./scripts/install.sh
 open "$HOME/Applications/Insomnia.app"
 ```
 
 The installer asks for your Mac administrator password in Terminal.
-Settings identifies this fork as version 0.2.0 with its source revision and
+Settings identifies this fork as version 0.2.1 with its source revision and
 links to this branch for reviewed updates. Its upstream release checker is
 disabled: an upstream release would replace the fork's changes. For upstream
 releases only, see the [upstream installation guide](docs/install.md).
