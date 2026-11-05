@@ -19,7 +19,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(c.endFloor, 10)
         XCTAssertEqual(c.nudgeThreshold, 90)
         XCTAssertEqual(c.maxDuration, 30 * 24 * 3600)
-        XCTAssertEqual(c.freezeList, ["com.tinyspeck.slackmacgap", "net.whatsapp.WhatsApp", "com.hnc.Discord"])
+        XCTAssertEqual(c.freezeList, [])
         XCTAssertTrue(c.agentList.contains("com.apple.Terminal"))
         XCTAssertTrue(c.agentList.contains("com.t3tools.t3code"))
         XCTAssertTrue(c.agentList.contains("com.docker.docker"))

@@ -127,6 +127,16 @@ step "Assembling $APP"
 # bundle and only then runs this copy; an edited script fails that check.
 "$CP" "$ROOT/scripts/backstop.sh" "$APP/Contents/Resources/backstop.sh"
 "$CHMOD" 755 "$APP/Contents/Resources/backstop.sh"
+# Only fork bundles carry this key. Record the source identity before signing.
+if "$PLUTIL" -extract InsomniaForkName raw -o - "$APP/Contents/Info.plist" >/dev/null 2>&1; then
+  revision="$(/usr/bin/git -C "$ROOT" rev-parse --short=12 HEAD 2>/dev/null || true)"
+  if [[ -n "$revision" ]]; then
+    /usr/bin/git -C "$ROOT" diff --quiet HEAD -- . || revision="$revision-dirty"
+  else
+    revision="source-archive"
+  fi
+  "$PLUTIL" -insert InsomniaSourceRevision -string "$revision" "$APP/Contents/Info.plist"
+fi
 "$PLUTIL" -lint "$APP/Contents/Info.plist" >/dev/null
 
 # 3. Sign --------------------------------------------------------------------

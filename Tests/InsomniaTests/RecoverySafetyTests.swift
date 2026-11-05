@@ -15,6 +15,29 @@ final class RecoverySafetyTests: XCTestCase {
         try h.store.saveSession(Session(startedAt: now.addingTimeInterval(-7200), endsAt: now.addingTimeInterval(-60)))
     }
 
+    func testIndependentWorkerExpiryEndsGUIAndCannotBeExtended() async throws {
+        let m = h.makeManager()
+        await m.start(duration: 3600)
+        var stored = try XCTUnwrap(h.store.loadSession())
+        stored.endsAt = Date(timeIntervalSince1970: 0)
+        try h.store.saveSession(stored)
+        await m.extend(by: 3600)
+        XCTAssertEqual(try h.store.loadSession()?.endsAt, stored.endsAt)
+        await m.checkExternalEnd()
+        XCTAssertNil(m.session)
+        XCTAssertFalse(h.guardFake.sleepDisabled)
+        XCTAssertNil(try h.store.loadSession())
+    }
+
+    func testIndependentWorkerRemovedSessionIsReconciled() async throws {
+        let m = h.makeManager()
+        await m.start(duration: 3600)
+        try h.store.deleteSession()
+        await m.checkExternalEnd()
+        XCTAssertNil(m.session)
+        XCTAssertFalse(h.guardFake.sleepDisabled)
+    }
+
     // MARK: Frozen process recovery
 
     func testFailedResumptionStaysJournaledAndIsReported() async throws {

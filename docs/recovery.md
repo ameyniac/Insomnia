@@ -24,8 +24,12 @@ app keeps trying it and will not quit until the file is gone.
 `uninstall.sh --purge` removes the renamed copies that are regular files;
 without `--purge` they stay.
 
-**Recovery is not "everything always gets undone."** The backstop does not
-monitor battery or temperature. Saved audio needs the app to reopen, and
+**Recovery is not "everything always gets undone."** The backstop checks
+battery and critical thermal state once a minute through a bounded, read-only
+command in the installed app, independently of the GUI. It ends sessions at
+the configured battery floor or critical heat, and when the probe fails. This
+is periodic protection, not an instantaneous thermal cutoff. Saved audio
+needs the app to reopen, and
 unconfirmed process freezes may need manual inspection. If a warning remains,
 resolve it before leaving the Mac unattended. Each release's real-Mac crash,
 reboot and installation checks are in [release validation](release-validation.md).

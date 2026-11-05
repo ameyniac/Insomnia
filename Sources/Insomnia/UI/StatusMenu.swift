@@ -14,6 +14,7 @@ enum StatusMenu {
             case separator
             case settings
             case quit
+            case copyDiagnostics
             /// Relaunch this browser with the occlusion flags. Carries the
             /// bundle id and name, so the item still names the same browser
             /// after a scan replaces the list.
@@ -58,9 +59,11 @@ enum StatusMenu {
         commandRunning: String? = nil,
         foreignSleep: String? = nil,
         outputsWaiting: [SavedAudioOutput] = [],
-        lidSimulationBuild: Bool = false
+        lidSimulationBuild: Bool = false,
+        recoveryLines: [String] = [],
+        includeDiagnostics: Bool = false
     ) -> [Item] {
-        var out: [Item] = []
+        var out: [Item] = recoveryLines.map { Item(title: $0, kind: .info) }
         if let held = SleepHeldLine.line(sessionActive: sessionActive, sleepHeld: sleepHeld) {
             out.append(Item(title: held.text, kind: held.isWarning ? .warning : .info))
         }
@@ -109,6 +112,7 @@ enum StatusMenu {
         if !out.isEmpty {
             out.append(Item(title: "", kind: .separator))
         }
+        if includeDiagnostics { out.append(Item(title: "Copy diagnostics", kind: .copyDiagnostics)) }
         out.append(Item(title: settingsTitle, kind: .settings))
         out.append(Item(title: quitTitle, kind: .quit))
         return out
@@ -129,7 +133,8 @@ enum StatusMenu {
         settings: Selector,
         quit: Selector,
         relaunchBrowser: Selector,
-        stopWaitingForOutput: Selector
+        stopWaitingForOutput: Selector,
+        copyDiagnostics: Selector? = nil
     ) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -149,6 +154,10 @@ enum StatusMenu {
                 }
                 entry.attributedTitle = NSAttributedString(string: item.title, attributes: attributes)
                 menu.addItem(entry)
+            case .copyDiagnostics:
+                if let copyDiagnostics {
+                    menu.addItem(action(title: item.title, selector: copyDiagnostics, key: "", target: target))
+                }
             case .settings:
                 menu.addItem(action(title: item.title, selector: settings, key: ",", target: target))
             case .quit:

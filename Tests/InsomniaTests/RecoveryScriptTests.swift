@@ -33,6 +33,42 @@ final class RecoveryScriptTests: XCTestCase {
         fx = nil
     }
 
+    private func installSafetyProbe(answer: String, status: Int = 0) throws {
+        let info = ScriptFixture.infoPlist(resumeFrozenVersion: "1")
+            .replacingOccurrences(of: "</dict>", with: "<key>InsomniaSafetyCheckVersion</key><integer>1</integer></dict>")
+        try info.write(to: fx.appInfo, atomically: true, encoding: .utf8)
+        try TestScripts.write("#!/bin/bash\nprintf '%s\\n' '\(answer)'\nexit \(status)\n", to: fx.fakeInsomnia)
+    }
+
+    func testSafetyProbeKeepsHealthySessionAndEndsLowBattery() throws {
+        try fx.writeSession(endsAt: Date(timeIntervalSinceNow: 3600))
+        try fx.writeState(#"{"sleepDisabledByUs":true,"lowPowerSetByUs":false,"frozenProcesses":[],"dockerFrozen":false}"#)
+        try installSafetyProbe(answer: "safe")
+        XCTAssertEqual(try fx.run(fx.backstop).status, 0)
+        XCTAssertTrue(fx.calls().isEmpty)
+        XCTAssertTrue(fx.exists(fx.session))
+        try installSafetyProbe(answer: "stop-battery", status: 10)
+        XCTAssertEqual(try fx.run(fx.backstop).status, 0)
+        XCTAssertFalse(fx.exists(fx.session))
+        XCTAssertTrue(fx.calls().contains("sudo -n \(fx.fakePmset) -a disablesleep 0"))
+    }
+
+    func testSafetyProbeFailureStillEndsAndPersistsDeadlineBeforeFailedUndo() throws {
+        try fx.writeSession(endsAt: Date(timeIntervalSinceNow: 3600))
+        try fx.writeState(#"{"sleepDisabledByUs":true,"lowPowerSetByUs":false,"frozenProcesses":[],"dockerFrozen":false}"#)
+        try installSafetyProbe(answer: "unrecognised", status: 1)
+        fx.setMode("sudo", "fail")
+        XCTAssertNotEqual(try fx.run(fx.backstop).status, 0)
+        let session = try Store.makeDecoder().decode(Session.self, from: Data(contentsOf: fx.session))
+        XCTAssertLessThanOrEqual(session.endsAt, Date())
+        XCTAssertEqual(try fx.stateJSON()["sleepDisabledByUs"] as? Bool, true)
+        // A now-healthy probe must not undo the earlier safety decision.
+        try installSafetyProbe(answer: "safe")
+        fx.setMode("sudo", "ok")
+        XCTAssertEqual(try fx.run(fx.backstop).status, 0)
+        XCTAssertFalse(fx.exists(fx.session))
+    }
+
     // MARK: - backstop.sh
 
     func testPrivilegedCommandFailureExitsNonzeroAndKeepsJournal() throws {

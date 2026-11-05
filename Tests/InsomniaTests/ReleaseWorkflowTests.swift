@@ -407,14 +407,14 @@ final class ReleaseWorkflowTests: XCTestCase {
         XCTAssertTrue(try readmeInstallSection().contains("Apple Silicon"), "the README's Install section")
     }
 
-    /// The README's Install section gives the coding agent prompt for either
-    /// channel and points at docs/install.md, which lets a reader choose a
-    /// channel and sends v0.1.0, which no workflow built, to its own release
-    /// notes.
-    func testTheReadmeOffersBothChannelsAndSetsV010Apart() throws {
+    /// The fork README installs this branch and distinguishes upstream
+    /// releases. The retained upstream guide still documents both channels
+    /// and sends v0.1.0 to its own release notes.
+    func testTheReadmeInstallsTheForkAndKeepsUpstreamChannelsDistinct() throws {
         let install = try readmeInstallSection().split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        for phrase in ["Install the latest stable Insomnia release by following https://github.com/krishhgg/Insomnia/blob/main/skills/install-insomnia/SKILL.md",
-                       "the newest Insomnia nightly prerelease", "](docs/install.md)"] {
+        for phrase in ["git clone --branch ameya/reliability https://github.com/ameyniac/Insomnia.git",
+                       "The upstream release installer does not include these changes.",
+                       "an upstream release would replace the fork's changes.", "](docs/install.md)"] {
             XCTAssertTrue(install.contains(phrase), "the README's Install section lacks: \(phrase)")
         }
         let skill = try String(contentsOf: repoRoot.appendingPathComponent("skills/install-insomnia/SKILL.md"), encoding: .utf8)

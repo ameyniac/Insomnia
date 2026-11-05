@@ -1,3 +1,6 @@
+> **Ameya’s reliability fork.** Based on upstream `b8e7e20` (2026-10-27).
+> See [fork changes and validation](docs/fork-validation.md). Installed-Mac trial results and remaining checks are recorded there.
+
 <p align="center">
   <img src="docs/assets/eye-open.svg" alt="Insomnia: an open eye with a round pupil and five lashes above it" width="112">
 </p>
@@ -35,41 +38,29 @@
 > guarantee.
 > [Validation status](docs/release-validation.md) · [Apple's ventilation guidance](https://support.apple.com/en-us/102336)
 
-<p align="center">
-  <img src="docs/assets/session-flow.svg" alt="Illustrated menu-bar controls: enter Days, Hours, and Minutes, watch the countdown, and hold the end control to finish early. Click the eye or countdown to add time. Closing the lid is optional, and incomplete recovery needs attention." width="880">
-</p>
 
 ## Install
 
 Requires macOS 26 or later on an Apple Silicon Mac.
 
-Paste this into your coding agent:
+This fork is built from source. Its local changes and test evidence are in
+[the fork validation record](docs/fork-validation.md). The upstream release
+installer does not include these changes.
 
-```text
-Install the latest stable Insomnia release by following https://github.com/krishhgg/Insomnia/blob/main/skills/install-insomnia/SKILL.md. If a step needs my password, give me the command to run in Terminal.
-```
-
-For the newest nightly, write "the newest Insomnia nightly prerelease" in
-place of "the latest stable Insomnia release". Nightlies are built from `main`
-on each day it has new commits. They have the newest code and may be broken.
-
-To install a release yourself, follow [docs/install.md](docs/install.md). It
-covers both channels, how to check the download, and `v0.1.0`, which installs
-differently. Settings > App shows the installed version, and "Check for
-updates" there tells you whether a newer release exists without installing
-anything.
-
-### Build from source
-
-Needs Xcode with Swift 6.2 or later. Replace `v<version>` with the latest
-stable tag, or a nightly tag for the newest code:
+Needs Xcode with Swift 6.2 or later:
 
 ```bash
-git clone --branch v<version> --depth 1 https://github.com/krishhgg/Insomnia.git
+git clone --branch ameya/reliability https://github.com/ameyniac/Insomnia.git
 cd Insomnia
 ./scripts/install.sh
 open "$HOME/Applications/Insomnia.app"
 ```
+
+The installer asks for your Mac administrator password in Terminal.
+Settings identifies this fork as version 0.2.0 with its source revision and
+links to this branch for reviewed updates. Its upstream release checker is
+disabled: an upstream release would replace the fork's changes. For upstream
+releases only, see the [upstream installation guide](docs/install.md).
 
 <details>
 <summary><strong>What the installer changes on your Mac</strong></summary>
@@ -103,8 +94,10 @@ file and explains how upgrades replace them.
 1. **Start.** Click the eye in the menu bar, enter days, hours and minutes,
    and press Enter.
 2. **Add time.** Click the eye or the countdown during a session.
-3. **End early.** Press and hold the end control next to the countdown.
-4. **Settings and status.** Right-click the eye. Quit asks Insomnia to undo
+3. **End early.** Click the end control next to the countdown. Dragging away cancels.
+4. **Settings and status.** Right-click the eye. The menu includes the deadline,
+   battery and thermal cutoffs, recovery-helper status, pending cleanup, and
+   Copy diagnostics. The diagnostics omit network/device names and raw logs. Quit asks Insomnia to undo
    the session first, and it refuses while a change is still waiting to be
    undone. Saved audio for an output that isn't connected doesn't hold it up.
    Insomnia restores that output if it reconnects while the app runs, or at
@@ -116,26 +109,33 @@ On battery power, Insomnia turns on Low Power Mode below 40% and ends the
 session below 10%. Those are the defaults. You can change both in Settings,
 and an end floor of 0 turns the battery end off. The heat rules turn on Low Power
 Mode when the Mac gets seriously hot and end the session at critical heat.
-They are on by default, and Settings can turn them off. All of these rules
-only work while the app runs.
+They are on by default, and Settings can turn them off. The GUI applies these
+rules while running. The independent recovery worker also checks the battery end
+floor and critical heat once a minute, even after a GUI crash.
 
 Before your first session, check Settings. Then run a short session you can
 watch, and read `~/Library/Logs/Insomnia/insomnia.log` afterward.
 
 ## What happens when the lid closes
 
-<p align="center">
-  <img src="docs/assets/lid-actions.svg" alt="Illustrated Settings defaults: Slack, WhatsApp, and Discord on the freeze list, Docker's idle rule off, mute on. During a session, lid close applies configured actions; reopening attempts to resume verified owned freezes and restore saved audio. The session continues. Without an active session, lid changes do nothing." width="880">
-</p>
 
 During a session, closing the lid does each of these, and opening it tries
 to undo them. The timer keeps counting down while the lid is closed.
 
+- **The screen locks.** Locking is on by default. An active external display
+  skips locking unless "Also lock with an external display connected" is on.
+  If locking cannot be confirmed, Insomnia ends the session and attempts to
+  restore normal sleep. The lock uses a private macOS entry point and checks
+  the session's locked state; compatibility must be checked after OS updates.
 - **Display and keyboard light go off.** Insomnia saves their brightness
-  first. With sleep turned off, macOS no longer does this by itself.
+  first. With sleep turned off, macOS no longer does this by itself. If the
+  timer ends while the lid is closed, it restores sleep settings immediately
+  and retains brightness until the lid is known open. While the app runs,
+  deferred brightness is checked every five seconds and restored after wake;
+  quitting preserves it for the next launch.
 - **Apps on the freeze list are frozen.** Freezing sends an app's processes
-  `SIGSTOP`, which pauses them until `SIGCONT` on lid open. The list starts
-  with Slack, WhatsApp and Discord. "Freeze every other app" is off by
+  `SIGSTOP`, which pauses them until `SIGCONT` on lid open. This fork starts
+  with an empty freeze list. "Freeze every other app" is off by
   default. Even when on, it skips meeting, recording and dictation apps: Zoom,
   Teams, Webex, FaceTime, Wispr Flow, Granola, Otter, OBS and Loom.
 - **Audio is muted.** Lid open unmutes each output Insomnia muted, even if you
@@ -155,19 +155,16 @@ and how to test lid actions without closing the lid.
 
 ## How recovery works
 
-<p align="center">
-  <img src="docs/assets/recovery-flow.svg" alt="The app and a launchd backstop coordinate through a shared lock and recovery journal. The app handles normal cleanup. The backstop checks every minute and attempts due recovery, leaving valid active sessions alone. Failed or unreadable recovery evidence stays on disk; saved audio needs the app and unconfirmed stopped processes need inspection." width="880">
-</p>
 
 Insomnia writes each change to a **recovery journal**, a file on disk, before
 it makes the change. Ending the session tries to undo what the journal lists.
-If the app crashes or quits, the recovery agent tries the same once the
-session's end time has passed.
+If the app crashes, the recovery agent tries the same at the deadline or
+when its independent battery/heat check ends the session sooner.
 
 Some things need you:
 
 - The recovery agent can't restore audio. Open Insomnia again for that.
-- The recovery agent doesn't watch the battery or the temperature.
+- The recovery agent checks critical heat and the battery end floor once a minute. A failed safety probe ends the session conservatively.
 - Insomnia only unfreezes a process it can prove it froze. A frozen process
   it can't prove stays frozen until you check it.
 

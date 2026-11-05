@@ -950,13 +950,19 @@ final class LidActionsTests: XCTestCase {
         XCTAssertEqual(try h.store.loadState(), RuntimeState.clean)
     }
 
-    func testSessionEndWhileClosedRestoresDisplayAndKeyboard() async throws {
+    func testSessionEndWhileClosedDefersDisplayAndKeyboardUntilOpen() async throws {
         let (m, actions) = await make()
         await m.start(duration: 3600)
+        h.clamshell.closed = true
         await actions.onClose()
-
         await m.end(reason: .timer)
-
+        XCTAssertEqual(h.display.wakes, 0)
+        XCTAssertEqual(h.display.sets, [0])
+        XCTAssertEqual(h.keyboard.sets, [0])
+        XCTAssertFalse(m.state.sleepDisabledByUs)
+        XCTAssertTrue(m.displayRestoreWaitingForLid)
+        h.clamshell.closed = false
+        await m.restoreDisplayAfterLidOpens()
         XCTAssertEqual(h.display.wakes, 1)
         XCTAssertEqual(h.display.sets, [0, 0.7])
         XCTAssertEqual(h.keyboard.sets, [0, 0.5])

@@ -31,6 +31,7 @@ struct SettingsView: View {
             agentSection
             powerSection
             networkSection
+            recoverySection
             appSection
         }
         .formStyle(.grouped)
@@ -191,6 +192,11 @@ struct SettingsView: View {
             Text(wouldFreezeText)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            Toggle("Lock screen when the lid closes", isOn: bind(\.lockOnLidClose))
+            Toggle("Also lock with an external display connected", isOn: bind(\.lockWithExternalDisplay))
+                .disabled(!manager.config.lockOnLidClose)
+            Text("If locking cannot be confirmed, the session ends and normal sleep is restored. Docked sessions stay unlocked unless the second option is enabled.")
+                .font(.caption).foregroundStyle(.secondary)
             Toggle("Pause Docker Desktop when no containers are running", isOn: bind(\.dockerRule))
             Text("Off by default. When on, Docker Desktop is paused only if a second check right before the pause still finds no running container; a container that starts in that last moment is paused with it.")
                 .font(.callout)
@@ -483,6 +489,19 @@ struct SettingsView: View {
         newTmuxTarget = ""
     }
 
+    private var recoverySection: some View {
+        Section("Session and recovery") {
+            ForEach(RecoverySummary.lines(manager: manager), id: \.self) { Text($0) }
+            Text(RecoveryHealth.shared.line)
+                .foregroundStyle(RecoveryHealth.shared.snapshot.warning ? Color.orange : Color.secondary)
+            Button("Refresh recovery status") { Task { await RecoveryHealth.shared.refresh() } }
+                .disabled(RecoveryHealth.shared.checking)
+            Text("A successful helper run is a past result, not a guarantee of future recovery.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .task { await RecoveryHealth.shared.refresh() }
+    }
+
     private var appSection: some View {
         Section("App") {
             Toggle("Launch at login", isOn: launchAtLogin)
@@ -513,29 +532,36 @@ struct SettingsView: View {
     /// installs nothing; the installer run again is the upgrade.
     @ViewBuilder
     private var releaseCheck: some View {
-        HStack {
-            Button(releases.state == .checking ? "Checking" : "Check for updates") { releases.check() }
-                .disabled(releases.state == .checking)
-            Button("Open releases page") { NSWorkspace.shared.open(GitHubReleaseFetcher.releasesPage) }
-        }
-        switch releases.state {
-        case .idle:
-            Text("Asks GitHub when you click, and installs nothing. To upgrade, run the installer again.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        case .checking:
-            EmptyView()
-        case let .checked(report):
-            Text(report.summary)
-                .font(.caption)
-                .foregroundStyle(report.standing == .newerStableAvailable ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                .textSelection(.enabled)
-        case let .failed(reason):
-            Text("Could not check: \(reason)")
-                .font(.caption)
-                .foregroundStyle(.red)
+        if AppBuild.current.isFork {
+            Button("Open this fork") { NSWorkspace.shared.open(AppBuild.forkPage) }
+            Text("Custom fork. Updates are reviewed builds installed with its installer. Upstream releases do not include these changes.")
+                .font(.caption).foregroundStyle(.secondary)
+        } else {
+            HStack {
+                Button(releases.state == .checking ? "Checking" : "Check for updates") { releases.check() }
+                    .disabled(releases.state == .checking)
+                Button("Open releases page") { NSWorkspace.shared.open(GitHubReleaseFetcher.releasesPage) }
+            }
+            switch releases.state {
+            case .idle:
+                Text("Asks GitHub when you click, and installs nothing. To upgrade, run the installer again.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .checking:
+                EmptyView()
+            case let .checked(report):
+                Text(report.summary)
+                    .font(.caption)
+                    .foregroundStyle(report.standing == .newerStableAvailable ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .textSelection(.enabled)
+            case let .failed(reason):
+                Text("Could not check: \(reason)")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
     }
+
 
     /// The switch shows what macOS has on file (`LoginItem.isRegistered`:
     /// enabled or waiting for approval), so a registration that an upgrade

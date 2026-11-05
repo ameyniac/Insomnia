@@ -36,6 +36,12 @@
 	<string>NSApplication</string>
 	<key>InsomniaResumeFrozenVersion</key>
 	<integer>1</integer>
+	<key>InsomniaForkName</key>
+	<string>Insomnia · Ameya fork</string>
+	<key>InsomniaForkVersion</key>
+	<string>0.2.0</string>
+	<key>InsomniaSafetyCheckVersion</key>
+	<integer>1</integer>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Krish Garg. MIT License.</string>
 </dict>
