@@ -430,3 +430,24 @@ covers a session started with the lid closed and an external display.
 Validation: 176 focused UI/status, lid actions, lid-aware reconciliation and
 packaging tests passed with zero failures. Installed monitor behavior still
 requires the 0.3.4 hardware retest.
+
+## Installed 0.3.4 docked acceptance (2026-11-05)
+
+Ameya reported all three docked checks working, including the moving
+countdown. Logs corroborate lock policy and session lifecycle:
+
+- 15:49:19 PST: external display detected and locking skipped. Reopening at
+  15:49:36 restored audio and Low Power Mode; manual end restored sleep.
+- 15:50:13: docked override confirmed screen locking. Reopening at 15:50:23
+  restored audio and Low Power Mode; manual end restored sleep.
+- 15:50:53: session started with the lid already closed. The initial close
+  event ran at 15:50:55 and correctly skipped docked locking. Timer expiry
+  at 15:51:49 restored sleep and cleared app-set Low Power Mode. No session
+  file remained. Audio was correctly retained for restoration on reopening;
+  final reopening cleanup was still pending at inspection.
+
+The countdown movement is user-observed, not logged frame-by-frame. The
+external monitor does not support the app's brightness control, so dimming
+was safely skipped. Keyboard backlight remains managed by macOS on this
+hardware. Notifications are denied; enabled notification delivery has not
+been exercised.
