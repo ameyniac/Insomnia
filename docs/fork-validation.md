@@ -367,3 +367,31 @@ helper ordering, forced-cleanup exclusion and packaging. bash -n and git
 diff --check passed. The GUI diagnostics menu could not be inspected through
 computer use (application lookup timed out); its model/privacy tests passed,
 but that is not a claim of live UI verification.
+
+## Installed 0.3.3 hardware acceptance (2026-11-05)
+
+Ameya completed the unplugged two-minute session trial on installed 0.3.3,
+source 86931ba24630. Closing the lid at 15:08:13 PST locked the screen,
+darkened the panel and muted headphones. Reopening during the session at
+15:08:45 restored panel brightness to 1.0 and headphone volume to 0.496063,
+unmuted. Keyboard backlight was already suppressed by macOS with no trusted
+saved reading; the app correctly left it to macOS. This does not establish
+an app-managed keyboard-backlight restoration result.
+
+After the second close, the helper restored normal sleep and Low Power Mode
+at the 15:09:50 deadline. Audio and brightness remained deferred while the
+lid was closed. The OS accepted the explicit sleep request; pmset recorded
+actual Software Sleep at 15:10:21 and lid/HID wake at 15:11:35. Kernel sleep
+and wake timestamps independently corroborated that sleep occurred.
+
+At 15:11:39 the app restored the saved headphone volume/unmuted state and
+panel brightness, then cleared the recovery journal. No session file or
+residual Insomnia activity assertion remained; SleepDisabled and app-set
+Low Power Mode were both zero. Music was observed paused afterwards. Ameya
+accepted playback staying paused; restoring device audio settings does not
+promise resuming media playback, and no automatic playback was added.
+
+The core undocked lock, active-session reopening, closed-lid expiry, actual
+system sleep and post-wake cleanup trial passed. External-display policy,
+starting with the lid already closed, and live Copy diagnostics inspection
+remain unverified on hardware. Notification permission remains disabled.
