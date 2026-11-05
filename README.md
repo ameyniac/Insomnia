@@ -57,7 +57,7 @@ open "$HOME/Applications/Insomnia.app"
 ```
 
 The installer asks for your Mac administrator password in Terminal.
-Settings identifies this fork as version 0.2.1 with its source revision and
+Settings identifies this fork as version 0.2.2 with its source revision and
 links to this branch for reviewed updates. Its upstream release checker is
 disabled: an upstream release would replace the fork's changes. For upstream
 releases only, see the [upstream installation guide](docs/install.md).
@@ -100,8 +100,8 @@ file and explains how upgrades replace them.
    Copy diagnostics. The diagnostics omit network/device names and raw logs. Quit asks Insomnia to undo
    the session first, and it refuses while a change is still waiting to be
    undone. Saved audio for an output that isn't connected doesn't hold it up.
-   Insomnia restores that output if it reconnects while the app runs, or at
-   the next launch.
+   Insomnia restores that output when it is connected and the lid is known
+   open, while the app runs or at the next launch.
 
 You don't have to close the lid, and opening it doesn't end the session.
 
@@ -138,8 +138,12 @@ to undo them. The timer keeps counting down while the lid is closed.
   with an empty freeze list. "Freeze every other app" is off by
   default. Even when on, it skips meeting, recording and dictation apps: Zoom,
   Teams, Webex, FaceTime, Wispr Flow, Granola, Otter, OBS and Loom.
-- **Audio is muted.** Lid open unmutes each output Insomnia muted, even if you
-  switched to another one.
+- **Audio is muted until reopening.** Lid open restores each output Insomnia
+  muted, even if you switched to another one. If the timer ends with the lid
+  closed or unreadable, sleep settings are restored but audio stays muted.
+  The app checks for reopening every five seconds; quitting keeps the saved
+  audio settings for the next launch. Reconnecting headphones while closed
+  does not unmute them. A manual unmute is respected.
 - **Low Power Mode turns on.** It turns off when the lid opens, unless a
   battery or heat rule still needs it.
 - **Docker Desktop is frozen when no container runs.** This one is off by

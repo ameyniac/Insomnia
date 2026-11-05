@@ -27,10 +27,10 @@ final class ForkLidRecoveryTests: XCTestCase {
         XCTAssertTrue(h.display.sets.isEmpty)
         XCTAssertTrue(h.keyboard.sets.isEmpty)
         XCTAssertEqual(try h.store.loadState()?.savedDisplayBrightness, 0.8)
-        await m.restoreDisplayAfterLidOpens()
+        await m.restoreLidActionsAfterLidOpens()
         XCTAssertTrue(h.display.sets.isEmpty)
         h.clamshell.closed = false
-        await m.restoreDisplayAfterLidOpens()
+        await m.restoreLidActionsAfterLidOpens()
         XCTAssertEqual(h.display.wakes, 1)
         XCTAssertEqual(h.display.sets, [0.8])
         XCTAssertEqual(h.keyboard.sets, [0.3])
@@ -51,7 +51,7 @@ final class ForkLidRecoveryTests: XCTestCase {
         XCTAssertTrue(m.displayRestoreWaitingForLid)
         XCTAssertTrue(h.display.sets.isEmpty)
         h.clamshell.closed = false
-        await m.restoreDisplayAfterLidOpens()
+        await m.restoreLidActionsAfterLidOpens()
         XCTAssertEqual(h.display.sets, [0.7])
         XCTAssertFalse(m.state.isDirty)
     }
@@ -66,7 +66,7 @@ final class ForkLidRecoveryTests: XCTestCase {
         XCTAssertEqual(h.display.wakes, 0)
         XCTAssertEqual(try h.store.loadState()?.savedDisplayBrightness, 0.7)
         h.clamshell.closed = false
-        await m.restoreDisplayAfterLidOpens()
+        await m.restoreLidActionsAfterLidOpens()
         XCTAssertEqual(h.display.sets, [0.7])
     }
 
@@ -79,7 +79,7 @@ final class ForkLidRecoveryTests: XCTestCase {
         await m.reconcile()
         h.display.throwOnSet = true
         h.clamshell.closed = false
-        await m.restoreDisplayAfterLidOpens()
+        await m.restoreLidActionsAfterLidOpens()
         XCTAssertEqual(try h.store.loadState()?.savedDisplayBrightness, 0.7)
         XCTAssertFalse(m.state.sleepDisabledByUs)
         XCTAssertNotNil(m.lastError)

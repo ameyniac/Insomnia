@@ -61,9 +61,8 @@ enum RecoverySummary {
         let floor = manager.config.endFloor > 0 ? "Battery cutoff: below \(manager.config.endFloor)%" : "Battery cutoff: off"
         let thermal = manager.config.thermalRules ? "Critical-heat cutoff: on" : "Critical-heat cutoff: off"
         let state = manager.effectiveState
-        let cleanup = manager.displayRestoreWaitingForLid
-            ? "Brightness saved · waiting for lid to open"
-            : (state.isDirty || state.hasRefusedBrightness || manager.pendingEnd != nil || manager.commandWarning != nil ? "Cleanup pending · see status details" : "No pending cleanup")
+        let cleanup = manager.lidRestoreWaitingDescription.map { "\($0) saved · waiting for lid to open" }
+            ?? (state.isDirty || state.hasRefusedBrightness || manager.pendingEnd != nil || manager.commandWarning != nil ? "Cleanup pending · see status details" : "No pending cleanup")
         return [end, floor + " · " + thermal, cleanup]
     }
 

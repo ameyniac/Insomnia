@@ -442,8 +442,22 @@ final class SessionManager {
     @ObservationIgnored private var deadlineTimer: Timer?
     @ObservationIgnored private var countdownTimer: Timer?
     @ObservationIgnored private var recoveryPollTimer: Timer?
-    @ObservationIgnored private var deferredDisplayTimer: Timer?
+    @ObservationIgnored private var deferredLidRestoreTimer: Timer?
     private(set) var displayRestoreWaitingForLid = false
+    private(set) var audioRestoreWaitingForLid = false
+
+    var lidRestoreWaitingDescription: String? {
+        switch (audioRestoreWaitingForLid, displayRestoreWaitingForLid) {
+        case (true, true): "Audio and brightness"
+        case (true, false): "Audio"
+        case (false, true): "Brightness"
+        case (false, false): nil
+        }
+    }
+
+    private var hasSavedAudio: Bool {
+        !state.savedAudioOutputs.isEmpty || state.savedOutputVolume != nil || state.savedMuted != nil
+    }
     @ObservationIgnored private var retryTimer: Timer?
     /// Whether the 1 Hz redraw is currently on the run loop. Tests assert on
     /// this to prove an idle session leaves no repeating wakeup behind.
@@ -1465,13 +1479,20 @@ final class SessionManager {
             let agentCanFinish = armed && !owedEdits.hidesARestore && owedReadLit == nil && !owedSettlement
             let unrecorded = [owedSettlement ? "that a brightness kept after a refused restore is settled" : nil,
                               owedReadLit != nil ? "a reading of the display brightness kept after a refused restore" : nil]
-            var withoutDisplay = state
-            withoutDisplay.savedDisplayBrightness = nil
-            withoutDisplay.savedKeyboardBrightness = nil
-            if displayRestoreWaitingForLid, retainedBecause == nil,
-               !withoutDisplay.isDirty(leavingOutAudioOf: waitingUIDs),
+            var withoutDeferred = state
+            if displayRestoreWaitingForLid {
+                withoutDeferred.savedDisplayBrightness = nil
+                withoutDeferred.savedKeyboardBrightness = nil
+            }
+            if audioRestoreWaitingForLid {
+                withoutDeferred.savedAudioOutputs = []
+                withoutDeferred.savedOutputVolume = nil
+                withoutDeferred.savedMuted = nil
+            }
+            if let waitingDescription = lidRestoreWaitingDescription, retainedBecause == nil,
+               !withoutDeferred.isDirty(leavingOutAudioOf: waitingUIDs),
                !owedEdits.hidesARestore, owedReadLit == nil, !owedSettlement {
-                notifier.post(title: "Session ended", body: "Sleep is back to normal. Brightness will be restored when the lid opens; the saved levels remain recorded.")
+                notifier.post(title: "Session ended", body: "Sleep is back to normal. \(waitingDescription) will be restored when the lid opens; the saved levels remain recorded.")
                 return .incomplete(agentArmed: armed)
             }
             let detail = dirty ? (lastError ?? "some changes could not be undone")
@@ -1871,6 +1892,14 @@ final class SessionManager {
     /// menu line an earlier audio failure put up (`clearAudioWarning`).
     private func restoreAudioInJournal(retrying: Bool = false) {
         if !retrying { audioRetriesLeft = Self.audioRetryLimit }
+        audioRestoreWaitingForLid = hasSavedAudio && clamshell() != false
+        updateDeferredLidRestoreTimer()
+        if audioRestoreWaitingForLid {
+            audioRetryTask?.cancel()
+            audioRetryTask = nil
+            Log.info("audio restoration deferred until the lid is known open")
+            return
+        }
         var retry = false
         for entry in state.savedAudioOutputs where state.savedAudioOutputs.contains(entry) {
             let device = entry.label
@@ -1950,9 +1979,9 @@ final class SessionManager {
     }
 
     /// CoreAudio reports a device connected or gone. An output device still
-    /// owed its volume gets it back now if it is connected, unless a lid
-    /// close may be in effect (`lidCloseMayBeInEffect`): the lid open
-    /// restores it then. CoreAudio sends no second event, so a recovery
+    /// owed its volume gets it back now if it is connected and the lid is
+    /// known open. Otherwise the deferred-lid timer restores it after open,
+    /// even if the session already ended. CoreAudio sends no second event, so a recovery
     /// lock that refuses this one is retried in process. Whether anything
     /// is owed is decided in the transaction, on the journal as it is on
     /// disk: another copy of the app may have saved an output since this
@@ -1972,10 +2001,8 @@ final class SessionManager {
                 // Nothing saved, or restored meanwhile by a lid open, an
                 // end or another copy of the app.
                 self.clearAudioWarning()
-                return
-            }
-            if self.lidCloseMayBeInEffect() {
-                Log.info("audio: \(what) while a lid close may be in effect; the saved volumes wait for the lid open")
+                self.audioRestoreWaitingForLid = false
+                self.updateDeferredLidRestoreTimer()
                 return
             }
             self.restoreAudioInJournal(retrying: retrying)
@@ -1990,23 +2017,6 @@ final class SessionManager {
         }
         if !retrying { audioRetriesLeft = Self.audioRetryLimit }
         scheduleAudioRetry()
-    }
-
-    /// Whether a lid close may still be in effect, so a muted output must
-    /// wait for the lid open: the lid is closed or its state unknown, and a
-    /// session is running. Before the launch reconcile has taken a session
-    /// over, or when it could not, that session is only on disk, so
-    /// session.json is read here, under the transaction's lock. One that
-    /// has not expired, or that cannot be read, counts as running.
-    private func lidCloseMayBeInEffect() -> Bool {
-        guard clamshell() != false else { return false }
-        if session != nil { return true }
-        do {
-            guard let onDisk = try store.loadSession() else { return false }
-            return !onDisk.isExpired(at: clock())
-        } catch {
-            return true
-        }
     }
 
     /// Tries the saved output volumes again in `recoveryRetryDelay`, in
@@ -2068,6 +2078,8 @@ final class SessionManager {
             do {
                 try self.journal { $0.savedAudioOutputs.removeAll { $0.deviceUID == deviceUID } }
                 self.audioDevicesNotConnected.remove(deviceUID)
+                self.audioRestoreWaitingForLid = self.hasSavedAudio && self.clamshell() != false
+                self.updateDeferredLidRestoreTimer()
                 Log.info("audio: stopped waiting for \(entry.label) as asked; its saved volume \(entry.volume) and mute \(entry.muted) are dropped, and it stays muted")
             } catch {
                 self.fail("could not drop the saved volume of \(entry.label): \(error.localizedDescription)")
@@ -2108,9 +2120,7 @@ final class SessionManager {
             clearUndone("Docker Desktop has no frozen process left") { $0.dockerFrozen = false }
         }
 
-        if !state.savedAudioOutputs.isEmpty || state.savedOutputVolume != nil || state.savedMuted != nil {
-            restoreAudioInJournal()
-        }
+        restoreAudioInJournal()
         // The audio restore and a failed clear above put their own line in
         // the menu, where the report below would replace it: it goes into
         // the report. A line left by an earlier run does not.
@@ -2132,12 +2142,9 @@ final class SessionManager {
             // retain their existing capability/readback retry path below.
             reassertTask?.cancel()
             pendingReassert = (nil, nil)
-            armDeferredDisplayRestore()
             Log.info("brightness restoration deferred until the lid is known open")
-        } else {
-            deferredDisplayTimer?.invalidate()
-            deferredDisplayTimer = nil
         }
+        updateDeferredLidRestoreTimer()
         if kept.brightnessJournaled, lidOpen { display.wake() }
         // Read before the entries are cleared: the re-assert below needs them.
         var restoredDisplay: Float?
@@ -2519,19 +2526,28 @@ final class SessionManager {
 
     /// A timer continues after session services stop, and fires after wake.
     /// No power setting is changed while waiting. Relaunch reconstructs the
-    /// wait from the existing brightness journal, without a new schema.
-    private func armDeferredDisplayRestore() {
-        guard deferredDisplayTimer == nil else { return }
+    /// wait from the existing audio and brightness journal, without a new schema.
+    private func updateDeferredLidRestoreTimer() {
+        guard lidRestoreWaitingDescription != nil else {
+            deferredLidRestoreTimer?.invalidate()
+            deferredLidRestoreTimer = nil
+            return
+        }
+        armDeferredLidRestore()
+    }
+
+    private func armDeferredLidRestore() {
+        guard deferredLidRestoreTimer == nil else { return }
         let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.restoreDisplayAfterLidOpens() }
+            Task { @MainActor in await self?.restoreLidActionsAfterLidOpens() }
         }
         timer.tolerance = 1
         RunLoop.main.add(timer, forMode: .common)
-        deferredDisplayTimer = timer
+        deferredLidRestoreTimer = timer
     }
 
-    func restoreDisplayAfterLidOpens() async {
-        guard displayRestoreWaitingForLid, clamshell() == false else { return }
+    func restoreLidActionsAfterLidOpens() async {
+        guard lidRestoreWaitingDescription != nil, clamshell() == false else { return }
         if isActive {
             await undoLidActions()
         } else {
