@@ -513,7 +513,7 @@ struct SettingsView: View {
                     .textSelection(.enabled)
             }
             LabeledContent("Version") {
-                Text(AppBuild.current.label)
+                Text(AppBuild.current.forkVersion ?? AppBuild.current.version ?? "Unknown")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)

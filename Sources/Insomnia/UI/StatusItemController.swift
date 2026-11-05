@@ -732,7 +732,7 @@ final class StatusItemController: NSObject {
             foreignSleep: manager.foreignSleepWarning,
             outputsWaiting: manager.outputsWaitingForRestore,
             lidSimulationBuild: LidSimulationBuild.isCompiledIn,
-            recoveryLines: RecoverySummary.lines(manager: manager) + [RecoveryHealth.shared.line, AppBuild.current.label],
+            recoveryLines: RecoverySummary.lines(manager: manager) + [RecoveryHealth.shared.line],
             includeDiagnostics: true
         )
     }
