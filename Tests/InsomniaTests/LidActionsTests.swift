@@ -962,7 +962,7 @@ final class LidActionsTests: XCTestCase {
         XCTAssertFalse(m.state.sleepDisabledByUs)
         XCTAssertTrue(m.displayRestoreWaitingForLid)
         h.clamshell.closed = false
-        await m.restoreDisplayAfterLidOpens()
+        await m.restoreLidActionsAfterLidOpens()
         XCTAssertEqual(h.display.wakes, 1)
         XCTAssertEqual(h.display.sets, [0, 0.7])
         XCTAssertEqual(h.keyboard.sets, [0, 0.5])

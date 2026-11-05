@@ -101,6 +101,37 @@ lid, recovery, integration, packaging and release-workflow tests. The tests
 register the native observer but inject lid reads and fake all lock, audio,
 brightness and power effects. Physical retesting of 0.2.1 remains pending.
 
+## Version 0.2.2: audio waits for reopening
+
+In the November 5 closed-lid expiry trial on 0.2.1, the timer restored audio
+while the lid was still closed, and the user heard music resume. The user
+approved changing that behavior. Audio restoration now waits until the lid is
+known open, even after the session expires. Sleep suppression and Low Power
+Mode cleanup still run immediately.
+
+The existing five-second deferred-brightness timer now also handles saved
+audio, including an audio-only journal. Reconnecting a saved device under a
+closed or unreadable lid does not unmute it. Relaunch reconstructs the wait
+from the saved journal. Once open, the existing device-specific restore,
+missing-device, manual-unmute and failed-clear rules still apply. Status and
+session-end messages distinguish audio, brightness, or both waiting for open.
+No journal schema or privileged command changed.
+
+Validation on 2026-11-05:
+
+- Initial focused coverage passed 126 existing tests and seven new Swift
+  Testing tests, including a parameterized closed/unknown-lid case.
+- Broad application regression passed 1,057 XCTest cases with 13 tmux skips
+  and zero failures, plus 13 Swift Testing tests across the startup and audio
+  suites. The unchanged recovery shell suite was excluded.
+- A final focused run passed all eight audio tests after adding a real-timer
+  case: an ended audio-only session restored through the five-second timer
+  without a device event or brightness entry. All 11 release-workflow tests
+  also passed after the README update.
+- Release build and strict ad-hoc signature verification passed. Tests use
+  temporary journals and fake audio/power effects. No installation or physical
+  audio retest is claimed by this validation step.
+
 ## Local verification, 2026-11-04
 
 Environment: macOS 26.5.2, arm64, Xcode Swift 6.3.3.
