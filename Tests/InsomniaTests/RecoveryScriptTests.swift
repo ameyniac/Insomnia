@@ -33,6 +33,34 @@ final class RecoveryScriptTests: XCTestCase {
         fx = nil
     }
 
+    func testExpiredCleanupCallsVersionedSleepHelperAfterPublishing() throws {
+        let info = ScriptFixture.infoPlist(resumeFrozenVersion: "1")
+            .replacingOccurrences(of: "</dict>", with: "<key>InsomniaClosedLidSleepVersion</key><integer>1</integer></dict>")
+        try info.write(to: fx.appInfo, atomically: true, encoding: .utf8)
+        let marker = fx.appInfo.deletingLastPathComponent().appendingPathComponent("sleep-check")
+        try TestScripts.write("""
+        #!/bin/bash
+        [[ "$1" == --sleep-if-lid-closed ]] || exit 2
+        /usr/bin/plutil -extract sleepDisabledByUs raw -o - "\(fx.state.path)" > "\(marker.path)"
+        """, to: fx.fakeInsomnia)
+        try fx.writeSession(endsAt: Date(timeIntervalSinceNow: -60))
+        try fx.writeState(#"{"sleepDisabledByUs":true,"lowPowerSetByUs":false,"frozenProcesses":[],"dockerFrozen":false}"#)
+        XCTAssertEqual(try fx.run(fx.backstop).status, 0)
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines), "false")
+    }
+
+    func testForceUninstallRecoveryNeverCallsSleepHelper() throws {
+        let info = ScriptFixture.infoPlist(resumeFrozenVersion: "1")
+            .replacingOccurrences(of: "</dict>", with: "<key>InsomniaClosedLidSleepVersion</key><integer>1</integer></dict>")
+        try info.write(to: fx.appInfo, atomically: true, encoding: .utf8)
+        let marker = fx.appInfo.deletingLastPathComponent().appendingPathComponent("unexpected-sleep-check")
+        try TestScripts.write("#!/bin/bash\ntouch '\(marker.path)'\n", to: fx.fakeInsomnia)
+        try fx.writeSession(endsAt: Date(timeIntervalSinceNow: -60))
+        try fx.writeState(#"{"sleepDisabledByUs":true,"lowPowerSetByUs":false,"frozenProcesses":[],"dockerFrozen":false}"#)
+        XCTAssertEqual(try fx.run(fx.backstop, ["--force"]).status, 0)
+        XCTAssertFalse(fx.exists(marker))
+    }
+
     private func installSafetyProbe(answer: String, status: Int = 0) throws {
         let info = ScriptFixture.infoPlist(resumeFrozenVersion: "1")
             .replacingOccurrences(of: "</dict>", with: "<key>InsomniaSafetyCheckVersion</key><integer>1</integer></dict>")

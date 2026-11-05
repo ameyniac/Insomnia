@@ -61,6 +61,26 @@ extension KeyboardBacklighting {
 /// Pure helpers shared by the live implementations, tested without the
 /// private frameworks.
 enum DisplayPower {
+    /// A wake is a pulse, not a claim to another full display-idle interval.
+    /// Release the returned assertion even when the display timer is long.
+    static func wakeOnce(
+        declare: (inout IOPMAssertionID) -> IOReturn = {
+            IOPMAssertionDeclareUserActivity("Insomnia lid open" as CFString, kIOPMUserActiveLocal, &$0)
+        },
+        release: (IOPMAssertionID) -> IOReturn = { IOPMAssertionRelease($0) }
+    ) {
+        var id: IOPMAssertionID = 0
+        let result = declare(&id)
+        guard result == kIOReturnSuccess else {
+            Log.error("display wake failed: IOPMAssertionDeclareUserActivity returned \(result)")
+            return
+        }
+        let released = release(id)
+        if released != kIOReturnSuccess {
+            Log.error("display wake assertion release failed (\(released))")
+        }
+    }
+
     static func clamped(_ value: Float) -> Float {
         min(max(value, 0), 1)
     }
@@ -217,11 +237,8 @@ final class DisplayServicesDimmer: DisplayDimming, @unchecked Sendable {
     }
 
     func wake() {
-        var id: IOPMAssertionID = 0
-        let kr = IOPMAssertionDeclareUserActivity("Insomnia lid open" as CFString, kIOPMUserActiveLocal, &id)
-        if kr != kIOReturnSuccess {
-            Log.error("display wake failed: IOPMAssertionDeclareUserActivity returned \(kr)")
-        }
+        guard isAsleep() else { return }
+        DisplayPower.wakeOnce()
     }
 
     /// Public CoreGraphics; needs no private symbol. A missing display

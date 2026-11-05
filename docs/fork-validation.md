@@ -320,3 +320,50 @@ Ameya. This is a 0.3.2 test build; 1.0.0 remains reserved for final validation.
 
 After the final interrupted-blink adjustment, all 64 artwork, startup and
 status tests passed again with no failures.
+
+## Closed-lid expiry sleep investigation (2026-11-05)
+
+On installed 0.3.2 (de182a37ac5f), the 14:42 PST two-minute trial and
+14:48 PST one-minute trial both ended on time. Audio and brightness stayed
+saved and muted/dark until reopening, then restored; the journal was clean.
+The second trial had playback paused. Locking passed by log and user report.
+Unrestricted pmset and kernel sleep/wake timestamps confirmed neither trial
+entered system sleep; the last kernel sleep was 11:03:13 PST.
+
+Two issues were identified:
+
+- DisplayServicesDimmer.wake discarded the activity assertion ID. Repeated
+  restores left multiple UserIsActive assertions lasting the configured
+  30-minute display timer. The app now avoids declaring activity when the
+  panel is already awake and releases a successful wake assertion immediately.
+- Restoring SleepDisabled permits sleep but does not replay the earlier lid
+  close. Apple's published IOPMrootDomain.cpp handles
+  kPowerEventUserDisabledSleep by changing the flag only. Other idle-sleep
+  assertions (including Claude during these trials) can then keep the Mac
+  awake. Their presence alone does not prove they caused the failure.
+
+0.3.3 adds an explicit public IOPMSleepSystem request after automatic session
+cleanup, under the recovery lock. A fresh kernel snapshot must say the lid
+is closed, clamshell sleep policy is enabled, and SleepDisabled is false.
+Unknown readings, an open lid, docked policy, a live session, an unfinished
+command or un-restored system changes prevent the request. Deferred audio
+and brightness remain journaled for reopening. The versioned headless helper
+provides the same journal/policy checks to the recovery worker after it
+publishes cleanup. Forced installer/uninstaller recovery never requests sleep.
+A successful request means accepted by the OS, not proof of physical sleep.
+
+The new helper was run with the real lid open and returned sleep-skipped.
+The new unit tests use injected sleep calls; none puts the test Mac to sleep.
+Physical closed-lid expiry on the new build remains pending.
+
+Sources: local macOS IOPMLib.h (IOPMAssertionDeclareUserActivity and
+IOPMSleepSystem), and Apple's published
+[IOPMrootDomain.cpp](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/Kernel/IOPMrootDomain.cpp).
+
+Validation: 346 XCTest cases passed with zero failures, plus six Swift
+Testing tests in the lid-observer startup suite. This run covered the new
+sleep guards and assertion release, session/lid recovery, deferred restores,
+helper ordering, forced-cleanup exclusion and packaging. bash -n and git
+diff --check passed. The GUI diagnostics menu could not be inspected through
+computer use (application lookup timed out); its model/privacy tests passed,
+but that is not a claim of live UI verification.

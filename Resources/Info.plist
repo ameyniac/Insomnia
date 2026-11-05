@@ -39,7 +39,9 @@
 	<key>InsomniaForkName</key>
 	<string>Insomnia · Ameya fork</string>
 	<key>InsomniaForkVersion</key>
-	<string>0.3.2</string>
+	<string>0.3.3</string>
+	<key>InsomniaClosedLidSleepVersion</key>
+	<integer>1</integer>
 	<key>InsomniaSafetyCheckVersion</key>
 	<integer>1</integer>
 	<key>NSHumanReadableCopyright</key>

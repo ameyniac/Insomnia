@@ -1511,6 +1511,21 @@ if (( changed == 1 )); then
   fi
 fi
 
+# SleepDisabled=0 does not replay an already-closed lid. After publication,
+# ask the versioned helper to re-read the journal and the kernel's clamshell
+# policy. Skip --force (install/uninstall) and older bundles. The helper
+# refuses open/unknown lids, docked mode, live sessions and incomplete cleanup.
+if (( force == 0 )) && [[ "$sleep_held" == true && "$new_sleep" == false ]]; then
+  sleep_version="$("$PLUTIL" -extract InsomniaClosedLidSleepVersion raw -o - "$INSOMNIA_INFO" 2>/dev/null || true)"
+  if [[ "$sleep_version" == 1 && -x "$INSOMNIA_BIN" ]]; then
+    if run_bounded "$INSOMNIA_BIN" --sleep-if-lid-closed; then
+      log info "closed-lid sleep check completed after cleanup"
+    else
+      log error "closed-lid sleep request failed; sleep is enabled but system sleep is unconfirmed"
+    fi
+  fi
+fi
+
 # --- Report ------------------------------------------------------------------
 if (( ${#failures[@]} > 0 )); then
   for f in "${failures[@]}"; do log error "still journaled: $f"; done

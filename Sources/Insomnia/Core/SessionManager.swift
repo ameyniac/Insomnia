@@ -374,6 +374,7 @@ final class SessionManager {
     private let keyboard: any KeyboardBacklighting
     private let appNap: any AppNapPreferencing
     private let notifier: any Notifying
+    private let requestClosedLidSleep: @Sendable () throws -> Bool
     private let clamshell: @Sendable () -> Bool?
     private let clock: @Sendable () -> Date
     /// What the process table says a pid is now. Read only, to tell whether
@@ -558,6 +559,7 @@ final class SessionManager {
         keyboard: any KeyboardBacklighting = NoopKeyboardBacklight(),
         appNap: any AppNapPreferencing = NoopAppNapPreferences(),
         notifier: any Notifying = RecordingNotifier(),
+        requestClosedLidSleep: @escaping @Sendable () throws -> Bool = { false },
         clamshell: @escaping @Sendable () -> Bool? = { LidObserver.readClamshellState() },
         clock: @escaping @Sendable () -> Date = { Date() },
         processLookup: @escaping @Sendable (Int32) -> ProcessLookup = { SignalProcessControl.processTableState(pid: $0) },
@@ -576,6 +578,7 @@ final class SessionManager {
         self.backstop = backstop
         self.audio = audio
         self.display = display
+        self.requestClosedLidSleep = requestClosedLidSleep
         self.keyboard = keyboard
         self.appNap = appNap
         self.notifier = notifier
@@ -660,7 +663,8 @@ final class SessionManager {
             display: display,
             keyboard: keyboard,
             appNap: CFAppNapPreferences(),
-            notifier: notifier
+            notifier: notifier,
+            requestClosedLidSleep: { try ClosedLidSleep.afterCleanup(paths: paths) }
         )
         let services = AppServices(
             paths: paths,
@@ -1421,6 +1425,19 @@ final class SessionManager {
             pendingEnd = reason
             quitRequested = false
             return .privilegedCommandRunning(pid: stuck.pid)
+        }
+
+        // At function exit all cleanup, journal writes and helper arming are
+        // complete, still under the recovery lock. Never sleep after an
+        // explicit quit, a failed start or an idle reconciliation.
+        defer {
+            let automatic = reason == .timer || reason == .batteryFloor || reason == .batteryUnreadable || reason == .thermalCritical || reason == .backstop
+            if had, automatic, retainedBecause == nil, !state.isDirtyApartFromAppOnlyEntries,
+               !owedEdits.hidesARestore, clamshell() == true {
+                do {
+                    if try requestClosedLidSleep() { Log.info("closed-lid system sleep requested after cleanup") }
+                } catch { fail(error.localizedDescription) }
+            }
         }
 
         // An output device that is not connected does not hold up the end:

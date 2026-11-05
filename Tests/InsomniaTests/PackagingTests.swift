@@ -387,7 +387,7 @@ final class PackagingTests: XCTestCase {
             XCTAssertTrue(FileManager.default.fileExists(atPath: bundle.appendingPathComponent(rel).path), rel)
         }
         let info = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: bundle.appendingPathComponent("Contents/Info.plist")), format: nil) as? [String: Any])
-        XCTAssertEqual(info["InsomniaForkVersion"] as? String, "0.3.2")
+        XCTAssertEqual(info["InsomniaForkVersion"] as? String, "0.3.3")
         XCTAssertEqual(info["InsomniaSourceRevision"] as? String, "source-archive", "a source copy without Git must not invent a revision")
         let perms = try FileManager.default.attributesOfItem(atPath: Paths.backstopScript(inBundle: bundle).path)[.posixPermissions] as? Int
         XCTAssertEqual(perms.map { $0 & 0o111 }, 0o111, "backstop.sh is executable")
