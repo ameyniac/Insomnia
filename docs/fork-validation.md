@@ -479,3 +479,11 @@ quieter introduction and keeps installation/recovery details intact. Existing
 bundle identifiers and filesystem paths are retained. All 42 branding,
 packaging and release workflow tests passed; the 1.0.0 installer is rebuilt
 for this final naming change.
+
+## Final installation verified (2026-11-05)
+
+Installed `insomniac 1.0.0`, source `80ac9a4f4071`, launched at 16:04:01 PST.
+Strict code-signature verification passed. Startup reconciled with no session
+and nothing to restore; the recovery journal has no saved audio, frozen apps,
+app-owned Low Power Mode or sleep override. Both power profiles show normal
+power mode. The approved lowercase display name is present in the bundle.
