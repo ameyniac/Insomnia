@@ -487,3 +487,30 @@ Strict code-signature verification passed. Startup reconciled with no session
 and nothing to restore; the recovery journal has no saved audio, frozen apps,
 app-owned Low Power Mode or sleep override. Both power profiles show normal
 power mode. The approved lowercase display name is present in the bundle.
+
+## 1.0.1: Sonoma and Sequoia compatibility (2026-11-05)
+
+Aayush's Sequoia Mac refused 1.0.0 with Launch Services error -10825. Both
+Package.swift and LSMinimumSystemVersion required macOS 26. The app compiles
+successfully with a macOS 14 deployment target without changing production
+Swift APIs. The test fixture used macOS 26's posix_spawn_file_actions_addchdir;
+it now calls the older _np API on earlier systems.
+
+The deployment target and bundle minimum are now 14.0. The installer checks
+macOS before building or requesting sudo and checks each bundle's declared
+minimum before installation. Invalid/unreadable versions fail closed. Tests
+cover Sonoma, Sequoia and Tahoe acceptance, older/unreadable host refusal,
+and newer/malformed bundle refusal, including numeric minor-version ordering.
+
+CI adds macOS 15 with Xcode 26.2 selected explicitly, retaining existing
+macOS 26/27 jobs. GitHub retired macOS 14 hosted runners on November 2, 2026;
+Sonoma runtime verification therefore needs a separate Mac or VM. Source
+builds require a Swift 6.2+ toolchain; the app's runtime target does not make
+Xcode 26 run on Sonoma. Native lid, sleep, brightness and lock behavior still
+needs physical confirmation on older systems; compiler success alone is not
+that confirmation. Existing runtime checks preserve brightness/keyboard
+refusals and fail-safe lock behavior if private APIs differ.
+
+References: [Apple Xcode requirements](https://developer.apple.com/xcode/system-requirements/),
+[Sequoia runner software](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md),
+[Sonoma runner retirement](https://github.com/actions/runner-images/issues/13518).

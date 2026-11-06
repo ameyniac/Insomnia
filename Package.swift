@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "Insomnia",
     platforms: [
-        .macOS(.v26),
+        .macOS(.v14),
     ],
     targets: [
         .executableTarget(

@@ -27,7 +27,8 @@ jobs:
   swift:
     name: Swift test and release build (${{ matrix.label }})
     # One job per macOS major release GitHub hosts, each on its image's
-    # default Xcode (no xcode-select). GitHub picks the point release and
+    # default Xcode, except Sequoia which needs Xcode 26.2 for Swift 6.2.
+    # GitHub picks the point release and
     # moves it forward, so the first step records the one each run used.
     #   macos-26 (arm64): Xcode 26.6 default, 26.4.1 also installed.
     #   xcode-27 (arm64, public preview): Xcode 27 on macOS 27.
@@ -36,6 +37,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - image: macos-15
+            label: macOS 15
           - image: macos-26
             label: macOS 26
           - image: xcode-27
@@ -68,6 +71,10 @@ jobs:
           else
             echo "::notice title=Tested merge::main $base, pull request head $head"
           fi
+
+      - name: Select Swift 6.2 toolchain on Sequoia
+        if: matrix.image == 'macos-15'
+        run: echo "DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer" >> "$GITHUB_ENV"
 
       - name: Print macOS and toolchain versions
         # Also written to the job summary, so each run names the macOS

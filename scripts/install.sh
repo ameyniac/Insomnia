@@ -58,6 +58,7 @@ CODESIGN=/usr/bin/codesign
 DITTO=/usr/bin/ditto
 CHMOD=/bin/chmod
 SYSCTL=/usr/sbin/sysctl
+SW_VERS=/usr/bin/sw_vers
 LOCKF=/usr/bin/lockf
 MV=/bin/mv
 RM=/bin/rm
@@ -346,6 +347,25 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+# Check before building, prompting for sudo, or touching an existing install.
+# Compare components numerically (15.10 is newer than 15.9); reject unreadable
+# metadata rather than letting Launch Services fail with an opaque -10825.
+version_at_least() {
+  local actual="$1" required="$2" a b c x y z
+  [[ "$actual" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){0,2}$ ]] || return 1
+  [[ "$required" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){0,2}$ ]] || return 1
+  IFS=. read -r a b c <<< "$actual"
+  IFS=. read -r x y z <<< "$required"
+  a=$((10#$a)); b=$((10#${b:-0})); c=$((10#${c:-0}))
+  x=$((10#$x)); y=$((10#${y:-0})); z=$((10#${z:-0}))
+  (( a > x || (a == x && b > y) || (a == x && b == y && c >= z) ))
+}
+HOST_MACOS="$("$SW_VERS" -productVersion 2>/dev/null || true)"
+if ! version_at_least "$HOST_MACOS" 14.0; then
+  echo "insomniac requires macOS 14 Sonoma or later; this Mac reports '${HOST_MACOS:-unknown}'. Nothing was changed." >&2
+  exit 1
+fi
 # Scratch space for bounded(): this run's own directory, emptied on exit.
 WORK="$("$MKTEMP" -d "${TMPDIR:-/tmp}/insomnia-install.XXXXXX")"
 
@@ -436,6 +456,13 @@ else
   BUILD_DIR="$("$MKTEMP" -d)"
   "$SCRIPT_DIR/build-app.sh" --output "$BUILD_DIR"
   SOURCE_APP="$BUILD_DIR/Insomnia.app"
+fi
+
+# A supplied bundle can require a newer system than this installer does.
+BUNDLE_MIN_MACOS="$("$PLUTIL" -extract LSMinimumSystemVersion raw -o - "$SOURCE_APP/Contents/Info.plist" 2>/dev/null || true)"
+if ! version_at_least "$HOST_MACOS" "$BUNDLE_MIN_MACOS"; then
+  echo "This app requires macOS ${BUNDLE_MIN_MACOS:-unknown (missing LSMinimumSystemVersion)}; this Mac runs $HOST_MACOS. Install a compatible build. Nothing was changed." >&2
+  exit 1
 fi
 
 # 2. sudoers -----------------------------------------------------------------

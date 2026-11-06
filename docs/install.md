@@ -1,3 +1,5 @@
+> For this fork, follow the [insomniac README](../README.md#install). Version 1.0.1 targets macOS 14 or later; the upstream instructions below describe upstream releases.
+
 # Install, upgrade and uninstall
 
 The [README](../README.md#install) has the short version. This page has every

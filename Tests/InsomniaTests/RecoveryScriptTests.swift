@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import XCTest
+import Testing
 @testable import Insomnia
 
 /// One backslash, for the JSON escapes in the texts below, which then read
@@ -6874,6 +6875,7 @@ private final class ScriptFixture {
         ]).write(to: buildApp, atomically: true, encoding: .utf8)
         try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: buildApp.path)
 
+        try TestScripts.write("#!/bin/bash\nprintf '15.7\\n'\n", to: bin.appendingPathComponent("sw_vers"))
         try writeInstallCopies(extraConstants: [:])
     }
 
@@ -6897,6 +6899,7 @@ private final class ScriptFixture {
             "SUDO": bin.appendingPathComponent("sudo").path,
             "CODESIGN": bin.appendingPathComponent("codesign").path,
             "SYSCTL": bin.appendingPathComponent("sysctl").path,
+            "SW_VERS": bin.appendingPathComponent("sw_vers").path,
             "MV": bin.appendingPathComponent("mv").path,
             "RM": bin.appendingPathComponent("rm").path,
             "RMDIR": bin.appendingPathComponent("rmdir").path,
@@ -6932,6 +6935,7 @@ private final class ScriptFixture {
         <key>CFBundleIdentifier</key><string>\(bundleID)</string>
         <key>CFBundlePackageType</key><string>APPL</string>
         <key>CFBundleShortVersionString</key><string>\(version)</string>
+        <key>LSMinimumSystemVersion</key><string>14.0</string>
         </dict></plist>
         """.write(to: app.appendingPathComponent("Contents/Info.plist"), atomically: true, encoding: .utf8)
         if machO {
@@ -7988,7 +7992,11 @@ private final class ScriptFixture {
         posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)
         posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY, 0)
         posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0)
-        posix_spawn_file_actions_addchdir(&actions, root.path)
+        if #available(macOS 26, *) {
+            posix_spawn_file_actions_addchdir(&actions, root.path)
+        } else {
+            posix_spawn_file_actions_addchdir_np(&actions, root.path)
+        }
 
         var attr: posix_spawnattr_t?
         posix_spawnattr_init(&attr)
@@ -8565,5 +8573,50 @@ final class AppEncodedJournalScriptTests: XCTestCase {
             XCTAssertEqual(try f.stateJSON()["sleepDisabledByUs"] as? Bool, false, label)
             XCTAssertFalse(f.exists(f.session), label)
         }
+    }
+}
+
+
+struct InstallerMacOSCompatibilityTests {
+    @Test(arguments: ["13.7.8", "", "unreadable"])
+    func unsupportedHostStopsBeforeChanges(version: String) throws {
+        let fx = try ScriptFixture()
+        defer { fx.destroy() }
+        try fx.prepareInstall()
+        try TestScripts.write("#!/bin/bash\nprintf '%s\\n' '\(version)'\n", to: fx.bin.appendingPathComponent("sw_vers"))
+        let result = try fx.run(fx.installRedirected, extraEnvironment: ["USER": "tester"])
+        #expect(result.status == 1)
+        #expect(result.stderr.contains("requires macOS 14 Sonoma or later"))
+        #expect(!fx.calls().contains { $0.hasPrefix("sudo") || $0.hasPrefix("swift") })
+        #expect(!fx.exists(fx.app))
+    }
+
+    @Test(arguments: ["14.0", "14.7.6", "15.7", "26.5.2"])
+    func supportedHostInstallsCompatibleBundle(version: String) throws {
+        let fx = try ScriptFixture()
+        defer { fx.destroy() }
+        try fx.prepareInstall()
+        try TestScripts.write("#!/bin/bash\nprintf '%s\\n' '\(version)'\n", to: fx.bin.appendingPathComponent("sw_vers"))
+        let bundle = try fx.writePrebuiltApp()
+        let result = try fx.run(fx.installRedirected, ["--allow-unverified-origin", "--app", bundle.path], extraEnvironment: ["USER": "tester"])
+        #expect(result.status == 0)
+        #expect(fx.exists(fx.app))
+    }
+
+    @Test(arguments: ["26.0", "15.10", "bad"])
+    func incompatibleBundleStopsBeforeSudo(minimum: String) throws {
+        let fx = try ScriptFixture()
+        defer { fx.destroy() }
+        try fx.prepareInstall()
+        try TestScripts.write("#!/bin/bash\nprintf '15.9\\n'\n", to: fx.bin.appendingPathComponent("sw_vers"))
+        let bundle = try fx.writePrebuiltApp()
+        let info = bundle.appendingPathComponent("Contents/Info.plist")
+        let original = try String(contentsOf: info, encoding: .utf8)
+        try original.replacingOccurrences(of: "<string>14.0</string>", with: "<string>\(minimum)</string>").write(to: info, atomically: true, encoding: .utf8)
+        let result = try fx.run(fx.installRedirected, ["--allow-unverified-origin", "--app", bundle.path], extraEnvironment: ["USER": "tester"])
+        #expect(result.status == 1)
+        #expect(result.stderr.contains("Install a compatible build"))
+        #expect(!fx.calls().contains { $0.hasPrefix("sudo") })
+        #expect(!fx.exists(fx.app))
     }
 }
