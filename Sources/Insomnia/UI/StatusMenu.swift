@@ -32,7 +32,7 @@ enum StatusMenu {
     }
 
     static let settingsTitle = "Settings\u{2026}"
-    static let quitTitle = "Quit Insomniac"
+    static let quitTitle = "Quit insomniac"
 
     /// Disabled status lines, a separator, then Settings… and Quit. Empty
     /// lines are dropped, and the separator only appears when something

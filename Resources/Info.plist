@@ -13,7 +13,7 @@
 	<key>CFBundleName</key>
 	<string>Insomnia</string>
 	<key>CFBundleDisplayName</key>
-	<string>Insomniac</string>
+	<string>insomniac</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundlePackageType</key>
@@ -37,7 +37,7 @@
 	<key>InsomniaResumeFrozenVersion</key>
 	<integer>1</integer>
 	<key>InsomniaForkName</key>
-	<string>Insomniac</string>
+	<string>insomniac</string>
 	<key>InsomniaForkVersion</key>
 	<string>1.0.0</string>
 	<key>InsomniaClosedLidSleepVersion</key>

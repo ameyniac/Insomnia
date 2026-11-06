@@ -185,9 +185,9 @@ struct StartupEyeView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isStarting ? "Verifying session" : "Insomniac")
+        .accessibilityLabel(isStarting ? "Verifying session" : "insomniac")
         .accessibilityValue(!isStarting ? (isRunning ? "Running" : "Idle") : completed < Self.blinkCount ? "\(Self.blinkCount - completed) seconds of the initial check remaining" : "Still verifying")
-        .help(isStarting ? "Verifying that sleep stays disabled before confirming the session." : "Insomniac")
+        .help(isStarting ? "Verifying that sleep stays disabled before confirming the session." : "insomniac")
         .task(id: isStarting) {
             completed = 0
             guard isStarting else {

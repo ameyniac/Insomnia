@@ -78,7 +78,7 @@ enum RecoverySummary {
     /// Deliberately excludes device names, SSIDs, paths, process identifiers,
     /// raw logs and credentials. It is copied only on an explicit click.
     static func diagnostics(manager: SessionManager, health: RecoveryHealth, sleepDisabled: Bool?) -> String {
-        (["Insomniac diagnostic summary", AppBuild.current.label,
+        (["insomniac diagnostic summary", AppBuild.current.label,
           "macOS \(ProcessInfo.processInfo.operatingSystemVersionString)",
           "Checked: \(Date().ISO8601Format())"] + lines(manager: manager) +
          [health.line, "SleepDisabled readback: \(sleepDisabled.map { $0 ? "1" : "0" } ?? "unavailable")",

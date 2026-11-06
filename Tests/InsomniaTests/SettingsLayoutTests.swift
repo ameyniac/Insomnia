@@ -16,7 +16,7 @@ final class SettingsLayoutTests: XCTestCase {
                 locationPermission: LocationPermission(authorizationStatus: .notDetermined),
                 loginItem: LoginItem(service: FakeLoginItemService(status: .notRegistered), install: "preview"),
                 releases: ReleaseChecker(),
-                build: AppBuild(info: ["InsomniaForkName": "Insomniac", "InsomniaForkVersion": "0.3.0"]), page: page)
+                build: AppBuild(info: ["InsomniaForkName": "insomniac", "InsomniaForkVersion": "0.3.0"]), page: page)
                 .environment(\.colorScheme, scheme)
             let host = NSHostingView(rootView: view)
             host.frame = CGRect(x: 0, y: 0, width: 620, height: 660)

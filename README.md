@@ -1,37 +1,20 @@
-<p align="center">
-  <img src="docs/assets/eye-open.svg" alt="Insomniac's wide-awake eye on overlapping cobalt shapes" width="128" height="128">
-</p>
+<img src="docs/assets/eye-open.svg" alt="insomniac's wide-awake eye on overlapping cobalt shapes" width="112" height="112">
 
-<h1 align="center">Insomniac</h1>
+# insomniac
 
-<p align="center"><strong>A little eye. A little more time.</strong></p>
-<p align="center">
-  Keep your Mac awake for as long as you need.<br>
-  Set a timer, close the lid, and let your session finish.
-</p>
+**Your Mac can sleep in a minute.**
 
-<p align="center">
-  <img alt="macOS 26 or later" src="https://img.shields.io/badge/macOS-26%2B-1645F5?style=flat-square">
-  <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple_Silicon-arm64-0D28A6?style=flat-square">
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/License-MIT-1645F5?style=flat-square"></a>
-</p>
+A small menu-bar timer that keeps your Mac awake, even with the lid closed.
+Set the timer. Get back to whatever you were doing.
 
-<p align="center">
-  <a href="#install">Install</a> &nbsp;·&nbsp;
-  <a href="#using-it">How it works</a> &nbsp;·&nbsp;
-  <a href="#when-the-lid-closes">Lid behavior</a> &nbsp;·&nbsp;
-  <a href="docs/fork-validation.md">Tested behavior</a>
-</p>
+The eye opens while a session is running, gets sleepy when it isn't, and
+follows your cursor when you get close.
 
----
+No Dock icon. No main window.
 
-Insomniac lives in your menu bar, with no Dock icon or main window. Its eye
-rests when idle, blinks through startup, and opens when your session is ready.
-Move your cursor nearby and the pupil follows along.
+Keep your Mac on a ventilated surface while it's awake, including with the lid closed.
 
-| Your session | Your preferences | A way back |
-| --- | --- | --- |
-| Set days, hours and minutes. Add time or end early. | Choose locking, audio and power behavior in four Settings tabs. | Changes are recorded before they happen, with an independent recovery helper if the app exits. |
+[Install](#install) · [Using it](#using-it) · [Lid behavior](#when-the-lid-closes) · [Tested behavior](docs/fork-validation.md)
 
 ## Install
 
@@ -48,7 +31,7 @@ open "$HOME/Applications/Insomnia.app"
 Enter your Mac administrator password when Terminal asks. Password typing
 is hidden. The app appears as an eye in the menu bar.
 
-This repository builds Insomniac from source. The upstream release installer
+This repository builds insomniac from source. The upstream release installer
 does not include these changes. Upstream update checks are disabled because
 an upstream release would replace the fork's changes. The retained
 [upstream installation guide](docs/install.md) describes upstream packages;
@@ -57,7 +40,7 @@ use the commands above for this version.
 <details>
 <summary><strong>What gets installed</strong></summary>
 
-- The app at `~/Applications/Insomnia.app`. Its displayed name is Insomniac;
+- The app at `~/Applications/Insomnia.app`. Its displayed name is insomniac;
   the existing bundle and support paths are retained for upgrades.
 - A `launchd` recovery helper that checks once a minute and restores journaled
   changes after an expired or unsafe session, even if the GUI has crashed.
@@ -112,7 +95,7 @@ The built-in microphone disconnects in hardware when the lid closes on Apple
 Silicon and T2 laptops. Use an external microphone or headphones with a mic
 for closed-lid recording. [More about lid behavior](docs/lid-close.md)
 
-## Recovery, without guesswork
+## When the session ends
 
 Each reversible change is written to a journal before it is applied. The app
 and independent helper use that record to restore settings. Incomplete
@@ -183,6 +166,7 @@ Tests use fakes and temporary folders rather than changing your power settings.
 
 ---
 
-Built on [Insomnia by Krish Garg](https://github.com/krishhgg/Insomnia).
-This fork adds its own visual identity, settings design and recovery behavior.
-[MIT licensed](LICENSE).
+Built by [Ameya](https://ameyniac.com/), on top of
+[Insomnia by Krish Garg](https://github.com/krishhgg/Insomnia).
+A new eye, reworked settings, and a lot of opening and closing a laptop
+to get recovery right. [MIT licensed](LICENSE).

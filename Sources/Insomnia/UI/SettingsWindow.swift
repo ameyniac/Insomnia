@@ -33,7 +33,7 @@ final class SettingsWindow {
     private func make() -> NSWindow {
         let host = NSHostingController(rootView: content())
         let window = NSWindow(contentViewController: host)
-        window.title = "Insomniac Settings"
+        window.title = "insomniac Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         // Closing settings must not deallocate the window: the status item
         // keeps a reference and reopens the same one.

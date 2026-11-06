@@ -56,7 +56,7 @@ enum AppIconArtwork {
         let grid = CGRect(x: 0, y: 0, width: 24, height: 24)
         return """
         <svg xmlns="http://www.w3.org/2000/svg" width="112" height="112" viewBox="100 100 824 824" role="img" aria-labelledby="eo-title eo-desc">
-          <title id="eo-title">Insomniac</title>
+          <title id="eo-title">insomniac</title>
           <desc id="eo-desc">A white wide-open eye over overlapping cobalt blue shapes.</desc>
           <rect x="100" y="100" width="824" height="824" rx="\(number(tile.width * cornerShare))" fill="#1645F5"/>
           <path d="\(pathData(petal(light: true)))" fill="#53A5FF"/>

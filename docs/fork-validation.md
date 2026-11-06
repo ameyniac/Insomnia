@@ -471,3 +471,11 @@ Final metadata/documentation verification: all 34 packaging and release
 workflow tests passed with zero failures. README local links resolve and
 git diff --check passed. Prior behavioral test results are retained above;
 the unchanged application code was not rerun solely for the version bump.
+
+Ameya chose the lowercase display name `insomniac` before final installation.
+The app labels, accessibility text, diagnostics, bundle display metadata and
+README artwork title now match. Sentience-informed README editing uses a
+quieter introduction and keeps installation/recovery details intact. Existing
+bundle identifiers and filesystem paths are retained. All 42 branding,
+packaging and release workflow tests passed; the 1.0.0 installer is rebuilt
+for this final naming change.

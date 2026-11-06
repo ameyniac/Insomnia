@@ -640,7 +640,7 @@ final class PackagingTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: Self.repoRoot.appendingPathComponent("docs/assets/eye-moon.svg").path), "the old eye-and-moon SVG is gone")
 
         let grid = CGRect(x: 0, y: 0, width: 24, height: 24)
-        XCTAssertTrue(committed.contains("<title id=\"eo-title\">Insomniac</title>"))
+        XCTAssertTrue(committed.contains("<title id=\"eo-title\">insomniac</title>"))
         for color in ["#1645F5", "#53A5FF", "#0D28A6", "#FFFFFF"] {
             XCTAssertTrue(committed.contains(color))
         }
