@@ -16,7 +16,7 @@ struct AppBuild: Equatable, Sendable {
     var forkVersion: String? = nil
     var sourceRevision: String? = nil
     var isFork: Bool { forkName != nil }
-    static let forkPage = URL(string: "https://github.com/ameyniac/Insomnia/tree/main")!
+    static let forkPage = URL(string: "https://github.com/ameyniac/insomniac/tree/main")!
 
     static let current = AppBuild(info: Bundle.main.infoDictionary ?? [:])
 

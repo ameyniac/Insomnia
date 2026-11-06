@@ -412,7 +412,7 @@ final class ReleaseWorkflowTests: XCTestCase {
     /// and sends v0.1.0 to its own release notes.
     func testTheReadmeInstallsTheForkAndKeepsUpstreamChannelsDistinct() throws {
         let install = try readmeInstallSection().split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        for phrase in ["git clone --branch main https://github.com/ameyniac/Insomnia.git",
+        for phrase in ["git clone --branch main https://github.com/ameyniac/insomniac.git",
                        "The upstream release installer does not include these changes.",
                        "an upstream release would replace the fork's changes.", "](docs/install.md)"] {
             XCTAssertTrue(install.contains(phrase), "the README's Install section lacks: \(phrase)")

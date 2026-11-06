@@ -22,8 +22,8 @@ Requires **macOS 26 or later**, an **Apple Silicon** Mac, and a Swift 6.2 or
 later toolchain from Xcode or the Command Line Tools.
 
 ```bash
-git clone --branch main https://github.com/ameyniac/Insomnia.git
-cd Insomnia
+git clone --branch main https://github.com/ameyniac/insomniac.git
+cd insomniac
 ./scripts/install.sh
 open "$HOME/Applications/Insomnia.app"
 ```
