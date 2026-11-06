@@ -98,9 +98,9 @@ the app requests system sleep when the current lid policy permits it. A Mac
 with a powered external display can remain awake under normal macOS docked
 behavior. Saved audio and brightness wait until the lid is known open.
 
-The built-in microphone disconnects in hardware when the lid closes on Apple
-Silicon and T2 laptops. Use an external microphone or headphones with a mic
-for closed-lid recording. [More about lid behavior](docs/lid-close.md)
+On Apple Silicon and T2 laptops, closing the lid disconnects the built-in
+microphone in hardware. Recording a meeting with the lid closed needs
+AirPods or an external mic. [More about lid behavior](docs/lid-close.md)
 
 ## When the session ends
 
