@@ -514,3 +514,14 @@ refusals and fail-safe lock behavior if private APIs differ.
 References: [Apple Xcode requirements](https://developer.apple.com/xcode/system-requirements/),
 [Sequoia runner software](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md),
 [Sonoma runner retirement](https://github.com/actions/runner-images/issues/13518).
+
+Local verification: 1,306 XCTest cases completed with zero failures and
+13 environment-dependent skips. The three app-encoded journal cases passed
+in the preceding run and were omitted from this repeat. All ten new installer
+compatibility cases pass after setting the fake launchctl service to loaded,
+as the existing successful-install fixture does. Release packaging and strict
+signature verification passed; the Mach-O binary reports `minos 14.0`, and
+its read-only `--check-session-safety` command returned `safe` on Tahoe.
+The staged 1.0.1 bundle has not replaced Ameya's installed 1.0.0 app.
+Hosted Sequoia release compilation passed; the full CI run is being repeated
+with that fixture correction. Physical Sequoia/Sonoma validation remains open.

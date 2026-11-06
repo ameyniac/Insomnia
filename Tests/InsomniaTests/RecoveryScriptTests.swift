@@ -8598,8 +8598,9 @@ struct InstallerMacOSCompatibilityTests {
         try fx.prepareInstall()
         try TestScripts.write("#!/bin/bash\nprintf '%s\\n' '\(version)'\n", to: fx.bin.appendingPathComponent("sw_vers"))
         let bundle = try fx.writePrebuiltApp()
+        fx.setMode("launchctl", "loaded")
         let result = try fx.run(fx.installRedirected, ["--allow-unverified-origin", "--app", bundle.path], extraEnvironment: ["USER": "tester"])
-        #expect(result.status == 0)
+        #expect(result.status == 0, "\(result.stderr) \(result.stdout)")
         #expect(fx.exists(fx.app))
     }
 
